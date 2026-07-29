@@ -138,21 +138,37 @@ def _iter_footprint_blocks(text: str):
 
 
 def _pad_subblock(block: str) -> str | None:
-    """Return the first depth-balanced `(pad ...)` sub-block of a footprint."""
+    """Return the main `(pad ...)` sub-block of a footprint.
+
+    `MountingHole_*_Pad_Via` footprints contain several pads: the anchor
+    pad plus a ring of small stitching vias — and KiCad 9 libraries
+    serialise the vias FIRST, so "first pad" would report the Ø0.5 via
+    drill instead of the real Ø2.5 anchor drill. Pick the pad with the
+    largest drill (falling back to the first pad when none declare one).
+    """
+    pads: list[str] = []
     idx = block.find("(pad ")
-    if idx < 0:
+    while idx >= 0:
+        depth = 0
+        j = idx
+        while j < len(block):
+            if block[j] == "(":
+                depth += 1
+            elif block[j] == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        pads.append(block[idx:j + 1] if j < len(block) else block[idx:])
+        idx = block.find("(pad ", j + 1)
+    if not pads:
         return None
-    depth = 0
-    j = idx
-    while j < len(block):
-        if block[j] == "(":
-            depth += 1
-        elif block[j] == ")":
-            depth -= 1
-            if depth == 0:
-                return block[idx:j + 1]
-        j += 1
-    return block[idx:]
+
+    def drill_of(pad: str) -> float:
+        m = _DRILL_RE.search(pad)
+        return float(m.group(1)) if m else -1.0
+
+    return max(pads, key=drill_of)
 
 
 def get_pcb_outline(text: str) -> tuple[float, float, float, float]:
