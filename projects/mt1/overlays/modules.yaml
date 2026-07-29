@@ -1,0 +1,205 @@
+# Per-module overlay config.
+#
+# IMPORTANT CONVENTIONS:
+#
+# `real_size_mm` = [width_mm, height_mm] in the IMAGE's NATIVE orientation.
+#                  (i.e., before any image_rotation_deg is applied)
+#
+# `image_rotation_deg` = CCW rotation to apply to the image so that its
+#                  pin row aligns with the PCB convention for rot=0:
+#                  pin row goes along +Y (vertical, downward), pin 1 at top.
+#
+# `positioning` = "bbox_center" — image is centered on the bbox center of
+#                  all refs (best for multi-pin modules like the XIAO that
+#                  sit between two sockets).
+#               = "anchor_offset" — image is centered at:
+#                  anchor_ref position + body_offset_mm (module-local,
+#                  rotated by anchor_ref's PCB rotation).
+#
+# `body_offset_mm` = [dx, dy] from the anchor_ref position to the IMAGE
+#                  CENTER, in MODULE-LOCAL coordinates (i.e., assuming
+#                  anchor at rot=0: pin row along +Y, body extends +X).
+#                  Script applies the actual anchor rotation automatically.
+#
+# `visible_layer` = F.Cu → shows in top render only.
+#                   B.Cu → shows in bottom render only.
+
+modules:
+  XIAO_ESP32S3:
+    refs: [U1, U5]
+    anchor_ref: U1
+    positioning: bbox_center
+    image: xiao-esp32s3-plus.png
+    # Native image (231×263 portrait): USB-C at top, BAT at bottom, pin
+    # headers on left/right edges going down. Aligns with PCB convention
+    # (U1 pin 1 at top y=107.38). No rotation needed.
+    real_size_mm: [17.78, 21.0]
+    image_rotation_deg: 0
+    # bbox_center alone only averages anchor X/Y of U1+U5 — but the anchors
+    # sit at pin 1 (top of the sockets at rot=0), not at the body Y center.
+    # body_offset_mm corrects for this: in module-local frame (PCB rot=0),
+    # the body center is +7.62mm in Y from pin 1 (half of pin-row span
+    # 15.24/2). X correction is 0 because bbox_center already averages
+    # U1.X and U5.X correctly. The compositor rotates this offset by the
+    # anchor's rotation, so it works at rot=0/90/180/270.
+    body_offset_mm: [0.0, 7.62]
+    visible_layer: F.Cu
+    category: module
+
+  LSM6DSO32:
+    refs: [U2]
+    anchor_ref: U2
+    positioning: anchor_offset
+    image: lsm6dsox-imu.png
+    # Native image (597×426 landscape): pin row at BOTTOM edge going +X
+    # (Vin GND 3Vo SCL SDA…), pin 1 at left, body (chip) above.
+    # image_rotation_deg=90 (CCW) → canonical pose. B.Cu photos render
+    # FAITHFUL: each pin label sits over its real pad (text reads mirrored,
+    # which is correct for a bottom-side part seen from below — see
+    # module_overlay, overlay review 2026-06-15).
+    # 2026-06-18: real_size_mm[0] 22.86 → 25.244. Escala de la FILA de pines:
+    # estaban agrupados hacia SDA (centro perfecto) y los extremos no llegaban a
+    # sus orificios. real_size[0] (ancho=longitud de la fila) fija el paso.
+    # 2026-06-18 (c): height 16.0 → 18.019 para NO DEFORMAR: aspect = el de la
+    # imagen fuente (597/426=1.401), así width/height=25.244/18.019=1.401.
+    # (Antes 25.244/16=1.578 estiraba la foto +12.6% → orificios de anclaje del
+    # módulo en posición falsa.) El paso de pines no cambia (depende del ancho).
+    real_size_mm: [25.244, 18.019]
+    image_rotation_deg: 270
+    # body_offset_mm derived from pin-1 position in IMAGE NATIVE coords:
+    #   pin 1 at (1.27, image_h - 1.27) = (1.27, 16.51) with 1.27mm margin
+    #   image center at (12.7, 8.89)
+    #   offset from pin 1 to image center (in image native): (11.43, -7.62)
+    # 2026-06-17: body_offset_x sets board-Y for U2 (rot=-90): image_center_y
+    # = anchor_y + body_offset_x. Set to -6.1 (was -7.1) to drop the photo
+    # ~1.0mm so the pin row centers on U2's pads at y=124 (the swarm found it
+    # ~1mm high; re-verified with projected pad markers). Y=10.16 = half the
+    # 9-pad span, sets board-X (centered on the pad row).
+    # 2026-06-18: -6.1 → -5.565 (Δlocal +0.535). Auto-corrección paramétrica
+    # (verify.pins): el centroide de la fila de pines de la foto quedaba 0.535mm
+    # alto en Y vs los pads → bajado. Computado, no a ojo. Ver REPORT.md §4.
+    # 2026-06-18 (c): -5.565 → -6.18 tras des-deformar (height 16→18.019 movió
+    # la fila +0.639mm en Y perp); re-centrado en los pads. Ver REPORT §4.5.
+    # 2026-06-18 (d): -6.295 → -6.117 tras regenerar el render base (transparent,
+    # framing 2352 vs 2384) que desplazó la fila +0.185mm perp. Re-centrado.
+    body_offset_mm: [-6.117, 10.16]
+    visible_layer: B.Cu
+    category: sensor
+
+  BMP585:
+    refs: [U3]
+    anchor_ref: U3
+    positioning: anchor_offset
+    image: bmp585-barometer.png
+    # Native image (Adafruit BMP585): pin row at the BOTTOM edge going +X,
+    # pin 1 (Vin) at left, body above — SAME orientation as the LSM6 photo,
+    # so it MUST use the SAME image_rotation_deg=270 as the LSM6.
+    # v0.1.3 (2026-06-16): was 90 → that left Vin at the BOTTOM / INT at the
+    # top, i.e. 180° flipped vs U3 (pad1/Vin at y_min = top). Fixed to 270
+    # (CW 90° of native) so Vin sits at the top, matching U3's pad column.
+    # 2026-06-18: real_size_mm[0] 22.86 → 25.188. Escala de la fila de pines:
+    # SDO (centro) perfecto, extremos (Vin/INT) agrupados hacia dentro.
+    # 2026-06-18 (c): height 16.0 → 17.614 para NO DEFORMAR: aspect = imagen
+    # fuente (339/237=1.430) → 25.188/17.614=1.430. (Antes 1.574 estiraba +10.1%.)
+    real_size_mm: [25.188, 17.614]
+    image_rotation_deg: 270
+    # body_offset Y=8.89 = half the 8-pad span (17.78/2). X=-6.0: image center
+    # = anchor_x + body_offset_x (compositor, no mirror on the offset itself);
+    # at -6.0 the pin column lands on U3's pads at x=145. (The earlier -2.0 left
+    # the photo ~4.2mm off, caught by the validation swarm's mounting-hole
+    # affine fit on 2026-06-17 and re-verified with projected pad markers.)
+    # 2026-06-18: -6.0 → -5.781 (Δlocal +0.219). Auto-corrección paramétrica
+    # (verify.pins): la columna de pines quedaba 0.219mm desviada en X (perp);
+    # ojo al espejo de cara bottom en el signo. Computado. Ver REPORT.md §4.
+    # 2026-06-18 (c): -5.781 → -6.377 tras des-deformar (height 16→17.614 movió
+    # la columna -0.596mm en X perp); re-centrado en los pads. Ver REPORT §4.5.
+    body_offset_mm: [-6.377, 8.89]
+    # v0.0.13 → v0.1.0: U3 movido a B.Cu (el cuerpo del breakout
+    # bloqueaba el subsistema batería en la franja superior del PCB).
+    # Ahora la foto aparece en el render bottom (junto al LSM6).
+    visible_layer: B.Cu
+    category: sensor
+
+  microSD:
+    refs: [U4]
+    anchor_ref: U4
+    positioning: anchor_offset
+    image: microsd-breakout.png
+    # Native image (567×515 near-square): pin row at BOTTOM edge
+    # (3V GND SO SI CS DAT2 …), pin 1 at left, SD slot at TOP.
+    real_size_mm: [25.4, 22.8]
+    image_rotation_deg: 90
+    # body_offset (rot=90 image, U4 at PCB rot=-90): body_offset_x sets
+    # board-Y, body_offset_y sets board-X (compositor). 2026-06-17: was
+    # [10.13,11.43] which put the pin row ~1.66mm toward +Y (off the pads,
+    # caught by the validation swarm's affine fit); the two perpendicular
+    # half-spans had been assigned to the wrong axes. [8.47,10.79] lands the
+    # pin row on U4's pads at y=108 (re-verified with projected pad markers).
+    # 2026-06-18: 8.47 → 8.732 (Δlocal +0.262). Auto-corrección paramétrica
+    # (verify.pins): fila de pines 0.262mm alta en Y vs pads → bajada. Ver REPORT §4.
+    # 2026-06-18 (b): body_offset_y 10.79 → 10.0 (Δ-0.79) para desplazar el módulo
+    # ~0.79mm a la DERECHA (board +X) y que el pad amarillo del zócalo quede
+    # centrado en el orificio de cada pin de la foto. d(center_x)/d(dyl)=-1
+    # (rot=-90), así que -dyl mueve +X. Ajuste iterativo VISUAL (la métrica de
+    # cobre engancha el pad fijo, no la foto). Ver REPORT.md §4.4.
+    body_offset_mm: [8.732, 10.0]
+    visible_layer: F.Cu
+    category: module
+
+  JST_battery:
+    refs: [J1]
+    anchor_ref: J1
+    positioning: anchor_offset
+    image: jst-ph-2pin.png
+    real_size_mm: [7.5, 8.0]
+    image_rotation_deg: 0
+    body_offset_mm: [0.0, 0.0]
+    visible_layer: F.Cu
+    category: connector
+
+  arming_switch:
+    refs: [SW1]
+    anchor_ref: SW1
+    positioning: anchor_offset
+    image: slide-switch.png
+    real_size_mm: [11.0, 6.0]
+    image_rotation_deg: 0
+    body_offset_mm: [0.0, 0.0]
+    visible_layer: F.Cu
+    category: switch
+
+  button_btn1:
+    refs: [SW2]
+    anchor_ref: SW2
+    positioning: anchor_offset
+    image: button-tl3342.png
+    real_size_mm: [7.0, 5.0]
+    image_rotation_deg: 0
+    body_offset_mm: [0.0, 0.0]
+    visible_layer: F.Cu
+    category: switch
+
+  button_btn2:
+    refs: [SW3]
+    anchor_ref: SW3
+    positioning: anchor_offset
+    image: button-tl3342.png
+    real_size_mm: [7.0, 5.0]
+    image_rotation_deg: 0
+    body_offset_mm: [0.0, 0.0]
+    visible_layer: F.Cu
+    category: switch
+
+  debug_header:
+    refs: [J3]
+    anchor_ref: J3
+    positioning: anchor_offset
+    image: pin-header-1x5.png
+    # Native: 5-pin pin header in a row, pin 1 at left. Rotate 90° CCW so
+    # pin row goes +Y on left edge, matching PCB convention.
+    real_size_mm: [12.7, 2.54]
+    image_rotation_deg: 90
+    # Pin row span 4×2.54=10.16, half=5.08. Body has no perpendicular extent.
+    body_offset_mm: [0.0, 5.08]
+    visible_layer: F.Cu
+    category: connector

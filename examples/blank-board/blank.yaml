@@ -1,0 +1,48 @@
+# blank-board — minimal pcb-designer smoke test
+#
+# 5 × 5 mm board with 1 mounting hole + 1 resistor (0805). Used by the
+# integration suite to verify that the pipeline can produce a valid
+# `.kicad_pcb` on a fresh, non-MT1 project.
+
+project:
+  name: blank-board
+  full_name: "Blank Board (smoke test)"
+  version: v0.0.1
+  vendor: pcb-designer-tests
+  kicad_project_dir: examples/blank-board/kicad
+  kicad_pcb_file: blank-board.kicad_pcb
+  kicad_sch_file: blank-board.kicad_sch
+  validation_output_dir: examples/blank-board/validation
+  renders_output_dir: examples/blank-board/renders
+
+geometry:
+  pcb:
+    x0: 0.0
+    y0: 0.0
+    x1: 5.0
+    y1: 5.0
+  anchors:
+    left_x:  0.5
+    right_x: 4.5
+
+placements:
+  H1: [2.5, 1.0, 0, F.Cu]   # 1 × M2 mounting hole
+  R1: [2.5, 3.5, 0, F.Cu]   # 1 × 0805 resistor
+
+pin_counts:
+  H1: 1
+  R1: 2
+
+pad_half:
+  H1: [1.10, 1.10]
+  R1: [0.55, 0.55]
+
+th_footprints:
+  - H1
+
+pin_local_positions:
+  R1: [[-1.0, 0.0], [1.0, 0.0]]   # 0805 HandSolder, 2 mm pad pitch
+
+routing:
+  trace_width_signal: 0.20
+  trace_width_power:  0.30

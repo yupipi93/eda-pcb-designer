@@ -1,0 +1,102 @@
+# full_features.yaml — template for `pcb-designer init <name> --template full_features`
+#
+# Every configurable field of pcb-designer with inline comments. Use as
+# a reference when designing a new board's config from scratch.
+
+project:
+  name: PROJECT-NAME
+  full_name: "Human Readable Name"
+  version: v0.0.1-initial
+  vendor: YOUR-ORG
+  kicad_project_dir: projects/PROJECT-NAME/kicad
+  kicad_pcb_file: PROJECT-NAME.kicad_pcb
+  kicad_sch_file: PROJECT-NAME.kicad_sch
+  validation_output_dir: projects/PROJECT-NAME/validation
+  renders_output_dir: projects/PROJECT-NAME/renders
+
+# ----------------------------------------------------------------------------
+# Board outline + silk anchor dividers (mm)
+# ----------------------------------------------------------------------------
+geometry:
+  pcb:
+    x0: 0.0          # min X corner
+    y0: 0.0
+    x1: 100.0        # max X corner
+    y1: 30.0
+  anchors:
+    left_x:  10.0    # vertical silk divider for left structural anchor
+    right_x: 80.0    # idem right anchor
+
+# ----------------------------------------------------------------------------
+# PLACEMENTS — every ref the script should arrange.
+# Format: [x_mm, y_mm, rotation_deg, layer]
+# layer is "F.Cu" (top) or "B.Cu" (bottom; placement.py auto-flips silk +
+# fab + mask layers via LAYER_PAIRS).
+# ----------------------------------------------------------------------------
+placements:
+  # Structural mounting holes (M2)
+  H1: [20.0, 10.0, 0, F.Cu]
+  H2: [80.0, 10.0, 0, F.Cu]
+
+  # MCU on the top side
+  U1: [50.0, 15.0, 90, F.Cu]
+
+  # Passive on the bottom side
+  R1: [50.0, 20.0, 0, B.Cu]
+
+# ----------------------------------------------------------------------------
+# Pin counts per ref. Mounting holes = 1. 1×N socket headers = N.
+# ----------------------------------------------------------------------------
+pin_counts:
+  H1: 1
+  H2: 1
+  U1: 14
+  R1: 2
+
+# ----------------------------------------------------------------------------
+# Pad half-extent (half_x, half_y in mm) used for courtyard bbox.
+# ----------------------------------------------------------------------------
+pad_half:
+  H1: [2.75, 2.75]
+  H2: [2.75, 2.75]
+  U1: [1.25, 1.25]
+  R1: [0.90, 0.90]   # 0805 HandSolder
+
+# ----------------------------------------------------------------------------
+# Body extent for breakouts that overhang their pin row. Optional.
+# ----------------------------------------------------------------------------
+body_extent:
+  U1: { half: [8.0, 12.0], offset: [6.0, 10.0] }
+
+# ----------------------------------------------------------------------------
+# Through-hole refs (drill holes consume space on BOTH layers).
+# ----------------------------------------------------------------------------
+th_footprints:
+  - H1
+  - H2
+  - U1
+
+# ----------------------------------------------------------------------------
+# Custom pin layouts that differ from "1×N vertical 2.54 mm pitch".
+# Each list is in the footprint-local frame BEFORE rotation.
+# ----------------------------------------------------------------------------
+pin_local_positions:
+  R1: [[-1.0, 0.0], [1.0, 0.0]]   # 0805, 2 mm pad pitch
+
+# ----------------------------------------------------------------------------
+# Net numbers — fixed by KiCad after Schematic→PCB sync. Stable as long
+# as the schematic doesn't change.
+# ----------------------------------------------------------------------------
+nets:
+  numbers:
+    GND:    2
+    "+3V3": 3
+    SDA:    4
+    SCL:    5
+
+# ----------------------------------------------------------------------------
+# Routing widths (mm)
+# ----------------------------------------------------------------------------
+routing:
+  trace_width_signal: 0.25
+  trace_width_power:  0.40

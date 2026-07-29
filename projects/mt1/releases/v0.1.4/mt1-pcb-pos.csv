@@ -1,0 +1,14 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"C8","C_0805_2012Metric_Pad1.18x1.45mm_HandSolder","C_0805_2012Metric_Pad1.18x1.45mm_HandSolder",128.000000,-103.000000,0.000000,bottom
+"U2","LSM6DSO32_socket","PinSocket_1x09_P2.54mm_Vertical",123.320000,-119.500000,-90.000000,bottom
+"U3","BMP585_socket","PinSocket_1x08_P2.54mm_Vertical",145.000000,-107.220000,0.000000,bottom
+"J1","Conn_01x02","PinHeader_1x02_P2.54mm_Vertical",101.500000,-103.000000,90.000000,top
+"J2","PinHeader_1x02_P2.54mm_Vertical","PinHeader_1x02_P2.54mm_Vertical",122.000000,-103.000000,90.000000,top
+"J4","proto_header","PinHeader_1x08_P2.54mm_Vertical",152.000000,-103.000000,90.000000,top
+"J5","Conn_01x02","PinHeader_1x02_P2.54mm_Vertical",139.000000,-103.000000,90.000000,top
+"R3","R_0805_2012Metric_Pad1.20x1.40mm_HandSolder","R_0805_2012Metric_Pad1.20x1.40mm_HandSolder",129.000000,-103.000000,0.000000,top
+"R4","R_0805_2012Metric_Pad1.20x1.40mm_HandSolder","R_0805_2012Metric_Pad1.20x1.40mm_HandSolder",133.000000,-103.000000,0.000000,top
+"SW1","SW_Slide_SPDT_Straight_CK_OS102011MS2Q","SW_Slide_SPDT_Straight_CK_OS102011MS2Q",110.500000,-103.000000,0.000000,top
+"U1","XIAO_left_socket","PinSocket_1x07_P2.54mm_Vertical",165.240000,-124.000000,180.000000,top
+"U4","microSD_socket","PinSocket_1x09_P2.54mm_Vertical",125.000000,-110.500000,-90.000000,top
+"U5","XIAO_right_socket","PinSocket_1x07_P2.54mm_Vertical",150.000000,-124.000000,180.000000,top

@@ -1,0 +1,179 @@
+# MT1 Flight Computer Board — pcb-designer config
+#
+# This file is the canonical configuration for the MultitecUA MT1 board.
+# It is the dogfood example for pcb-designer: every constant that
+# pcb/tools/place_components.py, pcb/tools/build_schematic.py,
+# pcb/tools/inject_battery.py and pcb/tools/run_autorouter.py used to
+# hard-code lives here.
+#
+# Path layout (relative to repo root) post-refactor:
+#   KiCad project:    projects/mt1/kicad/
+#   Validation logs:  projects/mt1/validation/
+#   Renders:          projects/mt1/renders/
+#
+# v0.1.0-battery-power layout (5 footprint instances + 6 mounting holes
+# + 7 battery subsystem footprints). See projects/mt1/docs/DESIGN_STATE.md
+# for the design rationale.
+
+project:
+  name: mt1
+  full_name: "MT1 Flight Computer Board"
+  version: v0.1.4
+  vendor: MultitecUA
+  kicad_project_dir: projects/mt1/kicad
+  kicad_pcb_file: mt1-pcb.kicad_pcb
+  kicad_sch_file: mt1-pcb.kicad_sch
+  validation_output_dir: projects/mt1/validation
+  renders_output_dir: projects/mt1/renders
+  tools_dir: projects/mt1/tools            # board orchestrator scripts (pipeline stages)
+  releases_output_dir: projects/mt1/releases
+
+# ----------------------------------------------------------------------------
+# Board outline + silk anchor dividers
+# 100 × 30 mm = 10 mm left anchor + 70 mm electronic + 20 mm right anchor
+# ----------------------------------------------------------------------------
+geometry:
+  pcb:
+    x0:  90.0
+    y0: 100.0
+    x1: 190.0
+    y1: 130.0
+  anchors:
+    left_x:  100.0
+    right_x: 170.0
+
+# ----------------------------------------------------------------------------
+# PLACEMENTS — every ref that survives the v0.0.12+ "modules-only" reset.
+# Format: [x_mm, y_mm, rot_deg, layer]
+# ----------------------------------------------------------------------------
+placements:
+  # ── Mounting holes (M2 structural) ──────────────────────────────────────
+  H1: [175, 105, 0, F.Cu]
+  H2: [185, 105, 0, F.Cu]
+  H3: [175, 125, 0, F.Cu]
+  H4: [185, 125, 0, F.Cu]
+  H5: [ 95, 107, 0, F.Cu]
+  H6: [ 95, 123, 0, F.Cu]
+
+  # ── F.Cu (TOP) ──────────────────────────────────────────────────────────
+  U4:  [125,    108, 270, F.Cu]   # microSD breakout — slot to +Y service edge
+  U3:  [145,    125, 180, B.Cu]   # BMP585 barometer (v0.1.0: moved to B.Cu)
+  U1:  [150,    124, 180, F.Cu]   # XIAO ESP32S3 Plus — left socket (USB-C +Y)
+  U5:  [165.24, 124, 180, F.Cu]   # XIAO ESP32S3 Plus — right socket
+  J4:  [148,    101.5, 90, F.Cu]  # 1x8 proto header above XIAO body
+
+  # ── v0.1.0 battery subsystem (top strip y=100..107) ─────────────────────
+  J1:  [105.0, 104.0, 180, F.Cu]  # JST-PH battery in
+  SW1: [115.0, 104.0,   0, F.Cu]  # SPDT slide power switch
+  J2:  [124.0, 104.0, 180, F.Cu]  # parallel external switch header
+  R3:  [130.0, 104.0,   0, F.Cu]  # BAT_SW → VBAT_SENSE
+  R4:  [134.0, 104.0,   0, F.Cu]  # VBAT_SENSE → GND
+  C8:  [138.0, 104.0,   0, F.Cu]  # filter cap on the divider
+  J5:  [142.0, 104.0, 180, F.Cu]  # tap-out to XIAO BAT pads
+
+  # ── B.Cu (BOTTOM) ───────────────────────────────────────────────────────
+  U2:  [103, 127, 90, B.Cu]       # LSM6DSO32 IMU — body along PCB X
+
+# ----------------------------------------------------------------------------
+# Footprint metadata used by placement / drill / bbox helpers
+# ----------------------------------------------------------------------------
+pin_counts:
+  U1: 7
+  U5: 7
+  U2: 9
+  U3: 8
+  U4: 9
+  J4: 8
+  H1: 1
+  H2: 1
+  H3: 1
+  H4: 1
+  H5: 1
+  H6: 1
+  J1: 2
+  SW1: 3
+  J2: 2
+  J5: 2
+  R3: 2
+  R4: 2
+  C8: 2
+
+pad_half:
+  U1:  [1.25, 1.25]
+  U5:  [1.25, 1.25]
+  U2:  [1.25, 1.25]
+  U3:  [1.25, 1.25]
+  U4:  [1.25, 1.25]
+  J4:  [1.25, 1.25]
+  H1:  [2.75, 2.75]
+  H2:  [2.75, 2.75]
+  H3:  [2.75, 2.75]
+  H4:  [2.75, 2.75]
+  H5:  [2.75, 2.75]
+  H6:  [2.75, 2.75]
+  J1:  [1.30, 1.30]
+  SW1: [1.30, 1.50]
+  J2:  [1.30, 1.30]
+  J5:  [1.30, 1.30]
+  R3:  [0.90, 0.90]
+  R4:  [0.90, 0.90]
+  C8:  [0.90, 0.90]
+
+body_extent:
+  U2: { half: [8.89, 12.7],  offset: [7.62, 11.43] }   # LSM6 breakout 17.78×25.4
+  U3: { half: [8.89, 12.7],  offset: [7.62, 11.43] }   # BMP585 breakout 17.78×25.4
+  U4: { half: [11.4, 12.7],  offset: [10.13, 11.43] }  # microSD breakout 22.8×25.4
+
+th_footprints:
+  - U1
+  - U2
+  - U3
+  - U4
+  - U5
+  - J4
+  - H1
+  - H2
+  - H3
+  - H4
+  - H5
+  - H6
+  - J1
+  - SW1
+  - J2
+  - J5
+
+pin_local_positions:
+  J1:  [[0.0, 0.0], [2.0, 0.0]]             # JST-PH 2-pin, 2.0 mm pitch
+  SW1: [[0.0, 0.0], [2.0, 0.0], [4.0, 0.0]] # SPDT slide, 2.0 mm pitch
+  J2:  [[0.0, 0.0], [0.0, 2.54]]            # 1×2 vertical pin header
+  J5:  [[0.0, 0.0], [0.0, 2.54]]
+  R3:  [[-1.0, 0.0], [1.0, 0.0]]            # 0805 HandSolder, 2 mm pitch
+  R4:  [[-1.0, 0.0], [1.0, 0.0]]
+  C8:  [[-1.0, 0.0], [1.0, 0.0]]
+
+# ----------------------------------------------------------------------------
+# Net numbers fixed by KiCad after the v0.0.14 "Update PCB from Schematic"
+# pass. Stable as long as build_schematic.py isn't touched.
+# ----------------------------------------------------------------------------
+nets:
+  numbers:
+    GND:      2
+    "+3V3":   3
+    LED1:     4
+    LED2:     5
+    BTN1:     6
+    BTN2:     7
+    I2C_SDA:  8
+    I2C_SCL:  9
+    SDIO_CMD: 10
+    SDIO_D0:  11
+    SDIO_CLK: 12
+    DBG_TX:   21
+    DBG_RX:   25
+
+# ----------------------------------------------------------------------------
+# Routing widths (CONVENTIONS §7)
+# ----------------------------------------------------------------------------
+routing:
+  trace_width_signal: 0.25   # mm — signals
+  trace_width_power:  0.4    # mm — +3V3 / GND traces (wider per CONVENTIONS §7)

@@ -1,0 +1,39 @@
+# minimal.yaml — template for `pcb-designer init <name> --template minimal`
+#
+# Bare-minimum config that still validates. Fill in PROJECT-NAME and the
+# kicad_*_dir/file fields, then `pcb-designer place --config <this>`.
+
+project:
+  name: PROJECT-NAME
+  full_name: "Human Readable Name"
+  version: v0.0.1
+  vendor: YOUR-ORG
+  kicad_project_dir: projects/PROJECT-NAME/kicad
+  kicad_pcb_file: PROJECT-NAME.kicad_pcb
+  kicad_sch_file: PROJECT-NAME.kicad_sch
+  validation_output_dir: projects/PROJECT-NAME/validation
+  renders_output_dir: projects/PROJECT-NAME/renders
+
+geometry:
+  pcb:
+    x0: 0.0
+    y0: 0.0
+    x1: 100.0
+    y1: 30.0
+  anchors:
+    left_x:  10.0
+    right_x: 80.0
+
+placements: {}     # ref → [x_mm, y_mm, rot_deg, layer]
+
+pin_counts: {}
+pad_half: {}
+th_footprints: []
+pin_local_positions: {}
+
+nets:
+  numbers: {}
+
+routing:
+  trace_width_signal: 0.25
+  trace_width_power:  0.40

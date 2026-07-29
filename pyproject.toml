@@ -1,0 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pcb-designer"
+version = "0.1.0"
+description = "Deterministic KiCad-9 PCB design pipeline — spec → schematic → placement → routing → verification → fab — built to be driven by humans and AI agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Sergio Conejero" }]
+keywords = ["kicad", "pcb", "eda", "electronics", "freerouting", "autorouter", "gerbers"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+schematic = ["kicad-sch-api"]
+render = ["Pillow>=9.0"]
+verify = ["Pillow>=9.0", "numpy>=1.24"]
+dev = ["pytest>=8", "ruff>=0.4", "Pillow>=9.0", "numpy>=1.24"]
+
+[project.scripts]
+pcb-designer = "pcb_designer.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yupipi93/eda-pcb-designer"
+Documentation = "https://github.com/yupipi93/eda-pcb-designer#readme"
+Issues = "https://github.com/yupipi93/eda-pcb-designer/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pcb_designer"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/pcb_designer", "docs", "examples", "themes", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E741",   # ambiguous single-letter names — fine in geometry code
+    "E701",   # multiple statements on one line (colon) — deliberate tight style
+    "E702",   # multiple statements on one line (semicolon) — idem
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/pcb_designer/verify/report.py" = ["E501"]   # box-drawing table literals
+"src/pcb_designer/render_overlay/cli.py" = ["E402"]  # __package__ bootstrap precedes imports

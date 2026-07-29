@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# freerouting JAR is fetched, not committed (see vendor/fetch-freerouting.sh)
+vendor/freerouting.jar
+vendor/*.log
+
+# KiCad regenerable / lock / backup artefacts
+*.lck
+~*.lck
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*-backups/
+fp-info-cache
+*.dsn
+*.ses
+*.bak[0-9]
+
+# Pipeline log output
+freerouting.log

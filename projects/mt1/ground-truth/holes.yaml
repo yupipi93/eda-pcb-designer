@@ -1,0 +1,70 @@
+# GROUND TRUTH — perforaciones de anclaje (mounting holes) de la MT1.
+#
+# Fuente de verdad de las posiciones/diámetros ESPERADOS de cada orificio de
+# anclaje, usada por `pcb_designer.verify.holes` para:
+#   - Comprobación geométrica:  diseño (.kicad_pcb) vs este fichero (PASS/FAIL).
+#   - Comprobación por visión:   centros detectados en el render vs este fichero.
+#   - Diff visual:               círculo esperado vs detectado por orificio.
+#
+# PRIORIDAD DE FUENTES (FASE 1 del encargo):
+#   (a) drill/footprint del propio diseño 0.1.3   ← usado para POSICIONES
+#   (b) datasheet/mechanical drawing del fabricante
+#   (c) footprint estándar (librería KiCad)        ← usado para Ø y tipo de tornillo
+#
+# Sistema de coordenadas: idéntico al .kicad_pcb → +X derecha, +Y ABAJO, mm.
+# Origen del marco de placa: esquina sup-izq del Edge.Cuts en (90,100).
+
+meta:
+  board: MT1
+  version: v0.1.3
+  units: mm
+  axes: "KiCad global: +X derecha, +Y abajo"
+  pcb_outline_mm: [90.0, 100.0, 190.0, 130.0]   # (x0,y0,x1,y1) → 100 x 30 mm
+  # Tolerancias por defecto (sobreescribibles por orificio).
+  pos_tol_mm: 0.10        # desviación de posición admisible (diseño vs GT)
+  dia_tol_mm: 0.10        # desviación de Ø admisible
+  # Tolerancia de la verificación por visión sobre el render (px→mm). El render
+  # v0.1.3 calibra a ~11.7 px/mm, así que 0.30 mm ≈ 3.5 px: muy por encima del
+  # ruido sub-píxel del centroide pero muy por debajo del error mm que produciría
+  # un orificio realmente desplazado. Justificación completa en REPORT.md.
+  cv_tol_mm: 0.30
+
+# Tornillo/Ø: la huella KiCad es "MountingHole:MountingHole_2.5mm_Pad_Via" y su
+# `descr` reza «Mounting Hole 2.5mm M2» → tornillo M2, taladro Ø2.5 mm, pad de
+# cobre (anillo) Ø5.0 mm. (Fuente a: el propio pad `(drill 2.5)(size 5 5)`;
+# fuente c: librería estándar KiCad.)
+#
+# CITAS (fuentes b/c, verificadas 2026-06-17):
+#  - KiCad MountingHole_2.5mm_Pad_Via.kicad_mod: drill 2.5 mm, pad Ø5.0 mm,
+#    +8 vías de cosido 0.8/0.5 mm. El "2.5mm" del nombre es el TALADRO, no el
+#    tornillo (las huellas con tornillo usan sufijo explícito, p.ej.
+#    MountingHole_2.7mm_M2.5). Fuente: kicad-footprints/MountingHole.pretty +
+#    https://klc.kicad.org/footprint/f2/f2.1/
+#  - ISO 273:1979 — agujeros de paso para M2: fino 2.2 / medio 2.4 / basto 2.6 mm.
+#    Un taladro de 2.5 mm es un ajuste holgado/medio-basto válido para M2 (entre
+#    medio 2.4 y basto 2.6). Fuente: ISO 273:1979 §2, https://www.iso.org/standard/4183.html
+#  → Conclusión: Ø2.5 mm es coherente con la intención M2 del diseño (sin conflicto).
+screw: M2
+drill_dia_mm: 2.5         # taladro (fuente a: pad drill del diseño)
+pad_dia_mm: 5.0           # anillo de cobre del pad (fuente a: pad size 5x5)
+
+# Posiciones nominales (fuente a: footprints H1..H6 del .kicad_pcb v0.1.3).
+# Agrupadas por zona de anclaje física del cuerpo del cohete.
+holes:
+  # Zona derecha "ANCHOR" — rejilla 2x2 (separación 10 mm en X, 20 mm en Y).
+  H1: {x: 175.0, y: 105.0, group: right_anchor}
+  H2: {x: 185.0, y: 105.0, group: right_anchor}
+  H3: {x: 175.0, y: 125.0, group: right_anchor}
+  H4: {x: 185.0, y: 125.0, group: right_anchor}
+  # Zona izquierda — par vertical (separación 16 mm en Y, x=95).
+  H5: {x: 95.0, y: 107.0, group: left_anchor}
+  H6: {x: 95.0, y: 123.0, group: left_anchor}
+
+# Relaciones geométricas esperadas entre orificios (verificadas además de las
+# posiciones absolutas — capturan la intención de diseño del patrón de anclaje).
+expected_spacings:
+  - {a: H1, b: H2, axis: x, mm: 10.0}    # fila superior derecha
+  - {a: H3, b: H4, axis: x, mm: 10.0}    # fila inferior derecha
+  - {a: H1, b: H3, axis: y, mm: 20.0}    # columna izquierda derecha
+  - {a: H2, b: H4, axis: y, mm: 20.0}    # columna derecha derecha
+  - {a: H5, b: H6, axis: y, mm: 16.0}    # par izquierdo

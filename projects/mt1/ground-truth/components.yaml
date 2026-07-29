@@ -1,0 +1,133 @@
+# GROUND TRUTH — pinout FÍSICO real de cada módulo de la MT1.
+#
+# Esta es la "fuente de verdad" del componente real (su silkscreen/datasheet),
+# INDEPENDIENTE del esquemático y del footprint. El verificador
+# (pcb_designer.verify) compara el .kicad_pcb contra esto para detectar:
+#   - nets en el pad equivocado            (check pad_net_function, C3)
+#   - footprints en espejo / mal volteados (checks chirality C1, flip C2)
+#
+# Formato por componente:
+#   refs:        lista de referencias (ej. el XIAO usa dos zócalos U1, U5)
+#   mount_side:  top (F.Cu) | bottom (B.Cu)  — cara donde va el CUERPO del módulo
+#   source:      de dónde sale este pinout (datasheet/guía)
+#   pins:        "<ref>.<pad>": {func: <nombre físico>, net: <net esperado o null>}
+#                'net' es la red que ESE pin físico debe llevar (intención de diseño).
+#                null = pin sin conexión (NC).
+#   chirality_triad: SOLO para piezas multi-columna (no colineales). Tres pines
+#                con sus coords en el marco LOCAL CANÓNICO de la pieza
+#                (vista por su cara de componente, +Y hacia arriba). El
+#                verificador deriva el signo esperado en el board según mount_side.
+#
+# NOTA: 'net' usa los nombres tal como aparecen en el .kicad_pcb (con '/').
+
+components:
+
+  # ────────────────────────────────────────────────────────────────────
+  # XIAO ESP32S3 Plus — DOS zócalos 1x7 (U1 izq lógica = D0..D6, U5 = power)
+  # Pinout canónico (Seeed), visto por arriba con USB hacia ARRIBA:
+  #   IZQ: D0 D1 D2 D3 D4 D5 D6     DER: 5V GND 3V3 D10 D9 D8 D7
+  # En MT1 va en TOP con USB hacia +Y (rot=180) → la columna D0 debe caer
+  # físicamente a la DERECHA (x mayor). chirality_triad lo verifica.
+  # ────────────────────────────────────────────────────────────────────
+  XIAO_ESP32S3:
+    refs: [U1, U5]
+    mount_side: top
+    source: "Seeed Studio XIAO ESP32S3 pinout (canónico, USB arriba, vista top)"
+    pins:
+      "U1.1": {func: D0, net: /VBAT_SENSE}   # GPIO1 / ADC1_CH0
+      "U1.2": {func: D1, net: /BTN2}
+      "U1.3": {func: D2, net: /LED1}
+      "U1.4": {func: D3, net: /LED2}
+      "U1.5": {func: D4, net: /I2C_SDA}      # GPIO5
+      "U1.6": {func: D5, net: /I2C_SCL}      # GPIO6
+      "U1.7": {func: D6, net: /DBG_TX}
+      "U5.1": {func: 5V,  net: null}         # USB 5V — NC en diseño slim
+      "U5.2": {func: GND, net: /GND}
+      "U5.3": {func: 3V3, net: /+3V3}
+      "U5.4": {func: D10, net: /SDIO_CMD}
+      "U5.5": {func: D9,  net: /SDIO_D0}
+      "U5.6": {func: D8,  net: /SDIO_CLK}
+      "U5.7": {func: D7,  net: /DBG_RX}
+    chirality_triad:
+      # Marco canónico: columna D0..D6 a x=-1, columna power a x=+1;
+      # pin 1 (junto al USB) en y=+3, pin 7 en y=-3.
+      - {at: "U1.1", func: D0, xy: [-1,  3]}
+      - {at: "U5.1", func: 5V, xy: [ 1,  3]}
+      - {at: "U1.7", func: D6, xy: [-1, -3]}
+
+  # ────────────────────────────────────────────────────────────────────
+  # LSM6DSO32 IMU — breakout Adafruit, 1x9 fila única. mount_side bottom.
+  # Orden físico: Vin 3Vo GND SCL SDA SDO/DO CS INT1 INT2  (SDA antes que SDO)
+  # ────────────────────────────────────────────────────────────────────
+  LSM6DSO32:
+    refs: [U2]
+    mount_side: bottom
+    # pin1 (Vin) must sit at the x_max end: a B.Cu single-row module inserts
+    # from below, REVERSING its pin order vs the socket numbering, so Vin lands
+    # at the end opposite a naive top-style pad1 (ERRATA-001 §9, fix 2026-06-16).
+    pin1_at: x_max
+    source: "Adafruit LSM6DSO32 breakout — STEMMA header (Vin 3Vo GND SCL SDA SDO CS I1 I2)"
+    pins:
+      "U2.1": {func: Vin, net: /+3V3}
+      "U2.2": {func: 3Vo, net: null}
+      "U2.3": {func: GND, net: /GND}
+      "U2.4": {func: SCL, net: /I2C_SCL}
+      "U2.5": {func: SDA, net: /I2C_SDA}   # SDA en pin 5 (estándar) → OK
+      "U2.6": {func: SDO, net: null}
+      "U2.7": {func: CS,  net: null}
+      "U2.8": {func: INT1, net: null}
+      "U2.9": {func: INT2, net: null}
+
+  # ────────────────────────────────────────────────────────────────────
+  # BMP585 barómetro — breakout Adafruit, 1x8 fila única. mount_side bottom.
+  # Orden físico REAL (Adafruit, confirmado en silkscreen de la foto):
+  #   Vin 3Vo GND SCL [SDO] [SDA] CS INT     ← SDO ENTRE SCL y SDA
+  # ────────────────────────────────────────────────────────────────────
+  BMP585:
+    refs: [U3]
+    mount_side: bottom
+    # pin1 (Vin) must sit at the y_min (top/interior) end — bottom-mount pin
+    # reversal, same as U2 (ERRATA-001 §9, fix 2026-06-16).
+    pin1_at: y_min
+    source: "Adafruit BMP580/581/585 Pinouts — 'SDO is the pin between SCL and SDA'"
+    pins:
+      "U3.1": {func: Vin, net: /+3V3}
+      "U3.2": {func: 3Vo, net: null}
+      "U3.3": {func: GND, net: /GND}
+      "U3.4": {func: SCL, net: /I2C_SCL}
+      "U3.5": {func: SDO, net: null}        # pin físico 5 = SDO (NO SDA)
+      "U3.6": {func: SDA, net: /I2C_SDA}    # pin físico 6 = SDA real
+      "U3.7": {func: CS,  net: null}
+      "U3.8": {func: INT, net: null}
+
+  # ────────────────────────────────────────────────────────────────────
+  # microSD — breakout Adafruit SPI/SDIO, 1x9 fila única. mount_side top.
+  # Orden físico: 3V GND CLK D0/SO CMD/SI D3/CS D1 DAT2 DET
+  # ────────────────────────────────────────────────────────────────────
+  microSD:
+    refs: [U4]
+    mount_side: top
+    # top-mounted → no bottom-mount reversal; pin1 (3V) at its natural x_max end.
+    pin1_at: x_max
+    source: "Adafruit microSD SPI/SDIO breakout (3V GND CLK DO DI/CMD CS D1 DAT2 CD)"
+    pins:
+      "U4.1": {func: "3V",  net: /+3V3}
+      "U4.2": {func: GND,   net: /GND}
+      "U4.3": {func: CLK,   net: /SDIO_CLK}
+      "U4.4": {func: "D0",  net: /SDIO_D0}
+      "U4.5": {func: CMD,   net: /SDIO_CMD}
+      "U4.6": {func: "D3CS", net: null}
+      "U4.7": {func: "D1",  net: null}
+      "U4.8": {func: DAT2,  net: null}
+      "U4.9": {func: DET,   net: null}
+
+# Buses clave para la comprobación de conectividad por intención (C4).
+# function -> net esperado; el verificador agrupa los pads por net y valida
+# que el conjunto que toca cada bus coincide con los pines marcados arriba.
+key_nets:
+  - /I2C_SDA
+  - /I2C_SCL
+  - /SDIO_CMD
+  - /SDIO_D0
+  - /SDIO_CLK
+  - /+3V3
