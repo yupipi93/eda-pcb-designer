@@ -1,0 +1,1 @@
+{"by_severity":{},"report":{"$schema":"https://schemas.kicad.org/drc.v1.json","coordinate_units":"mm","date":"2026-07-29T23:00:40+0000","included_severities":["error","warning"],"kicad_version":"9.0.9","schematic_parity":[],"source":"board.kicad_pcb","unconnected_items":[],"violations":[]},"status":"ok","unconnected_count":0,"violation_count":0}

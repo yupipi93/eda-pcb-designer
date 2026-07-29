@@ -1,0 +1,9 @@
+anchor holes: screw M2 drill Ø2.5 pad Ø5.0
+  [PASS] H1: posición y Ø correctos (Δpos=0.000 mm)
+         diseño=(95.0,115.0) esperado=(95.0,115.0) tol=0.1 mm · grupo=left_anchor · lib=MountingHole_2.5mm_Pad_Via drill=Ø2.5 pad=Ø5.0
+  [PASS] H2: posición y Ø correctos (Δpos=0.000 mm)
+         diseño=(185.0,115.0) esperado=(185.0,115.0) tol=0.1 mm · grupo=right_anchor · lib=MountingHole_2.5mm_Pad_Via drill=Ø2.5 pad=Ø5.0
+  [PASS] H1-H2 separación X=90.00 mm (esperado 90.0)
+  [PASS] H1-H2 separación Y=0.00 mm (esperado 0.0)
+  [SKIP] vision pass: board has 2 anchor holes; affine calibration needs >=3 (renders eyeballed in gate 7e instead)
+  => PASS

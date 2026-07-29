@@ -1,0 +1,36 @@
+# GROUND TRUTH — anchor holes of the Lemon Piano V5.5 board.
+#
+# Verified by pcb_designer.verify.holes:
+#   - geometric: design (.kicad_pcb) vs this file (position + Ø + pattern)
+#   - vision:    detected centres on the render vs this file
+#
+# Coordinate system: KiCad global, +X right, +Y DOWN, mm.
+# Board frame origin: top-left Edge.Cuts corner at (90,100).
+
+meta:
+  board: lemon-piano
+  version: v0.1.0
+  units: mm
+  axes: "KiCad global: +X right, +Y down"
+  pcb_outline_mm: [90.0, 100.0, 190.0, 130.0]   # 100 x 30 mm
+  pos_tol_mm: 0.10
+  dia_tol_mm: 0.10
+  cv_tol_mm: 0.30
+
+# Footprint MountingHole:MountingHole_2.5mm_Pad_Via — drill Ø2.5 mm
+# (M2 screw, loose/medium ISO 273 fit), copper annulus Ø5.0 mm + 8
+# stitching vias. Same part and rationale as MT1 (see the MT1
+# ground-truth citations, verified 2026-06-17).
+screw: M2
+drill_dia_mm: 2.5
+pad_dia_mm: 5.0
+
+# Exactly TWO anchor holes, one per short-edge extreme, mirror-symmetric
+# about the board's vertical centreline x = 140 (board spec).
+holes:
+  H1: {x: 95.0,  y: 115.0, group: left_anchor}
+  H2: {x: 185.0, y: 115.0, group: right_anchor}
+
+expected_spacings:
+  - {a: H1, b: H2, axis: x, mm: 90.0}   # symmetric: 140-45 / 140+45
+  - {a: H1, b: H2, axis: y, mm: 0.0}    # same height (board mid, y=115)

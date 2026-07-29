@@ -1,0 +1,19 @@
+  [PASS] Edge.Cuts rectangle present
+  [PASS] outline 100.0 x 30.0 mm at (90.0,100.0)
+  [PASS] outline is exactly 100 x 30 mm
+  [PASS] exactly 2 mounting holes (found 2)
+  [PASS] H1/H2 mirror-symmetric about x=140.0 (offsets 45.00/45.00)
+  [PASS] H1/H2 same height (y 115.0 / 115.0)
+  [PASS] holes at the short-edge extremes (<=10 mm from edge)
+  [PASS] holes at board mid-height
+  [PASS] Nano socket rows start at x=104 (USB end faces west edge)
+  [PASS] keys header on the NORTH service edge
+  [PASS] power terminal on the NORTH service edge
+  [PASS] LED bar on the SOUTH service edge
+  [PASS] SENS buttons on the SOUTH service edge
+  [PASS] mini-USB west corridor free of parts 
+  [PASS] GND zone present and filled on B.Cu
+  [PASS] every net has copper (34 nets; missing: none)
+  [PASS] no courtyard overlaps from YAML extents 
+
+GEOMETRY GATE: ALL PASS

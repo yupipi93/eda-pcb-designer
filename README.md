@@ -199,6 +199,9 @@ eda-pcb-designer/
 ├── examples/                ← board configs (mt1.yaml, blank-board)
 ├── projects/mt1/            ← WORKED EXAMPLE: kicad sources, tools, renders,
 │                              validation evidence, fabricated release v0.1.4
+├── projects/lemon-piano/    ← Lemon Piano V5.5 board (arduino-lemon-piano →
+│                              PCB), built end-to-end via the CLOUD API:
+│                              /place /route /drc /render /fab (release v0.1.0)
 ├── themes/                  ← KiCad DIM render color themes
 ├── vendor/                  ← freerouting fetch script (JAR not committed)
 └── tests/                   ← 42 unit tests (config, verify, holes, pins)
