@@ -12,6 +12,16 @@ a physical-verification gate (anti-mirror / anti-pin-swap) blocks fabrication
 outputs when the layout contradicts the board's ground-truth pinout. See
 [`AGENTS.md`](AGENTS.md) for the agent operating protocol.
 
+> 🌐 **Live hosted API**: **https://pcb-designer.scv.multitecua.com** — no
+> install needed. Upload a `.kicad_pcb` and get back an autorouted board
+> (freerouting), a DRC report, raytraced renders or a JLCPCB-ready fab zip.
+> Agents self-configure from [`/openapi.json`](https://pcb-designer.scv.multitecua.com/openapi.json).
+> See [§ HTTP API](#3--http-api-hosted--best-for-agents-in-the-cloud).
+>
+> ```bash
+> curl -F pcb=@board.kicad_pcb https://pcb-designer.scv.multitecua.com/route -o routed.kicad_pcb
+> ```
+
 > **Provenance**: extracted from the
 > [multi-rocket-avionica](https://github.com/Multitec-UA/multi-rocket-avionica)
 > project, where it designed the **MT1 rocket flight computer** — 5 board releases
