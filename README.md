@@ -128,7 +128,8 @@ executed**; the server only performs KiCad file surgery and returns the
 artefact.
 
 ```bash
-URL=https://pcb-designer-773810300510.europe-west1.run.app
+URL=https://pcb-designer.scv.multitecua.com
+# (direct service URL: https://pcb-designer-773810300510.europe-west1.run.app)
 
 # Freerouting-as-a-service: autoroute any .kicad_pcb
 curl -F pcb=@board.kicad_pcb "$URL/route" -o routed.kicad_pcb
@@ -146,6 +147,11 @@ curl -F pcb=@board.kicad_pcb -F config=@board.yaml "$URL/place" -o placed.kicad_
 `GET /openapi.json` serves the OpenAPI 3 spec (agents self-configure from it);
 binary responses become base64 JSON with `?format=json`. Run it yourself with
 `make docker-api` or deploy with [`deploy/`](deploy/) (Cloud Run-ready).
+
+> **Production deploys are tag-driven**: the hosted service is managed by the
+> multitec Terraform repo (Cloud Run + Artifact Registry + Cloud Build trigger
+> + domain mapping); pushing a tag `pcb-designer-vX.Y.Z` to this repo builds
+> `deploy/Dockerfile` and rolls out the new revision automatically.
 
 ### 4 · Python API
 

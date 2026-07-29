@@ -19,7 +19,10 @@ All notable changes to pcb-designer. Format loosely follows Keep a Changelog.
   statuses; hosts missing a tool answer 501 with install instructions.
 - **Cloud Run deployment**: `deploy/Dockerfile` (same KiCad 9 + Java 21 +
   freerouting toolchain, served by gunicorn) and `deploy/cloudbuild.yaml`.
-  Live at https://pcb-designer-773810300510.europe-west1.run.app.
+  Live at https://pcb-designer.scv.multitecua.com (direct service URL:
+  https://pcb-designer-773810300510.europe-west1.run.app). The service is
+  Terraform-managed (multitec terraform repo, workspace sergioconejero);
+  production deploys are tag-driven — push `pcb-designer-vX.Y.Z`.
 - 11 API unit tests (53 total); CI docker job extended with an end-to-end
   HTTP smoke test (health → validate → place → drc → render → route → fab).
 

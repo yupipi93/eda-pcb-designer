@@ -100,9 +100,9 @@ Environment: stages `place/route/render/fab` need KiCad 9 (+ Java 21 and
 [`README.md`](README.md#system-requirements-per-stage). If the host lacks them,
 use the Docker image (`make docker`), which runs the full pipeline — or, for
 one-off operations without any local toolchain, the hosted **HTTP API**
-(`https://pcb-designer-773810300510.europe-west1.run.app`, spec at
-`GET /openapi.json`): upload a `.kicad_pcb`, get back the routed board, DRC
-report, render or fab zip. See README §"HTTP API".
+(`https://pcb-designer.scv.multitecua.com`, spec at `GET /openapi.json`):
+upload a `.kicad_pcb`, get back the routed board, DRC report, render or fab
+zip. See README §"HTTP API".
 
 ## Session bootstrap prompt
 
