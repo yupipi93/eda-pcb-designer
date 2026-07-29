@@ -44,3 +44,30 @@ jobs:
         run: docker run --rm -w /app eda-pcb-designer validate --config examples/mt1.yaml
       - name: Smoke test — MT1 place + render stages (real kicad-cli DRC + renders)
         run: docker run --rm -w /app eda-pcb-designer pipeline --config examples/mt1.yaml --stages place,render
+
+  api:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the HTTP API image (Cloud Run image)
+        run: docker build -f deploy/Dockerfile -t pcb-designer-api .
+      - name: Smoke test — every endpoint end-to-end over HTTP
+        run: |
+          docker run -d --rm --name api -p 8080:8080 pcb-designer-api
+          for i in $(seq 1 30); do curl -sf localhost:8080/health && break; sleep 2; done
+          set -ex
+          curl -sf localhost:8080/health | grep -q '"kicad_cli"'
+          curl -sf --data-binary @examples/mt1.yaml localhost:8080/validate | grep -q '"placements":19'
+          curl -sf -F pcb=@projects/mt1/kicad/mt1-pcb.kicad_pcb -F config=@examples/mt1.yaml \
+               localhost:8080/place -o placed.kicad_pcb
+          grep -q '(at 150 124 180)' placed.kicad_pcb
+          curl -sf -F pcb=@projects/mt1/kicad/mt1-pcb.kicad_pcb localhost:8080/drc | grep -q '"status":"ok"'
+          curl -sf -F pcb=@projects/mt1/kicad/mt1-pcb.kicad_pcb 'localhost:8080/render?side=top' -o top.png
+          file top.png | grep -q 'PNG image'
+          curl -sf -F pcb=@projects/mt1/kicad/mt1-pcb.kicad_pcb localhost:8080/route -o routed.kicad_pcb
+          grep -q '(segment' routed.kicad_pcb
+          curl -sf -F pcb=@projects/mt1/kicad/mt1-pcb.kicad_pcb -F sch=@projects/mt1/kicad/mt1-pcb.kicad_sch \
+               'localhost:8080/fab?version=v0.0.0-ci' -o release.zip
+          unzip -l release.zip | grep -q 'bom.csv'
+          docker stop api

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pcb-designer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deterministic KiCad-9 PCB design pipeline — spec → schematic → placement → routing → verification → fab — built to be driven by humans and AI agents"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,7 +29,8 @@ dependencies = [
 schematic = ["kicad-sch-api"]
 render = ["Pillow>=9.0"]
 verify = ["Pillow>=9.0", "numpy>=1.24"]
-dev = ["pytest>=8", "ruff>=0.4", "Pillow>=9.0", "numpy>=1.24"]
+api = ["flask>=3.0", "gunicorn>=21.0"]
+dev = ["pytest>=8", "ruff>=0.4", "Pillow>=9.0", "numpy>=1.24", "flask>=3.0"]
 
 [project.scripts]
 pcb-designer = "pcb_designer.cli:main"

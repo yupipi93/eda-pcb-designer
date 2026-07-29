@@ -4,6 +4,25 @@ All notable changes to pcb-designer. Format loosely follows Keep a Changelog.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-29
+
+### Added
+- **HTTP API** (`pcb_designer.api`, `[api]` extra — Flask + gunicorn):
+  stateless KiCad pipeline operations over uploaded board files, mirroring
+  eda-wirewright's hosted-engine pattern. Endpoints: `POST /validate` (YAML
+  config → summary), `POST /place` (placements applied with genuine layer
+  flips), `POST /drc` (KiCad DRC report as JSON), `POST /render` (raytraced
+  PNGs), `POST /route` (**freerouting-as-a-service**: strip tracks → DSN →
+  freerouting → SES → zone fill), `POST /fab` (gerbers/drill/BOM/pos zip),
+  plus `GET /health` and `GET /openapi.json` so agents self-configure. No
+  uploaded code is ever executed; errors are structured JSON with meaningful
+  statuses; hosts missing a tool answer 501 with install instructions.
+- **Cloud Run deployment**: `deploy/Dockerfile` (same KiCad 9 + Java 21 +
+  freerouting toolchain, served by gunicorn) and `deploy/cloudbuild.yaml`.
+  Live at https://pcb-designer-773810300510.europe-west1.run.app.
+- 11 API unit tests (53 total); CI docker job extended with an end-to-end
+  HTTP smoke test (health → validate → place → drc → render → route → fab).
+
 ## [0.1.0] — 2026-07-29
 
 First release. Extracted from the

@@ -30,8 +30,15 @@ validate-examples:  ## Validate every example config
 mt1-pipeline:  ## Run the MT1 worked example: schematic → place → render (needs KiCad 9)
 	pcb-designer pipeline --config examples/mt1.yaml --stages schematic,place,render
 
+api:  ## Run the HTTP API locally (dev server on :8080)
+	$(PY) -m pcb_designer.api
+
 docker:  ## Build the pipeline-in-a-box image (KiCad 9 + Java 21 + freerouting)
 	docker build -t eda-pcb-designer .
+
+docker-api:  ## Build + run the HTTP API image (Cloud Run image) on :8080
+	docker build -f deploy/Dockerfile -t pcb-designer-api .
+	docker run --rm -p 8080:8080 pcb-designer-api
 
 docker-smoke:  ## Run the containerised MT1 smoke test (validate + place + render)
 	docker run --rm -w /app eda-pcb-designer validate --config examples/mt1.yaml
@@ -41,4 +48,4 @@ clean:  ## Remove caches and build artefacts
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
 
-.PHONY: help install dev test lint fmt freerouting validate-examples mt1-pipeline docker docker-smoke clean
+.PHONY: help install dev test lint fmt freerouting validate-examples mt1-pipeline api docker docker-api docker-smoke clean

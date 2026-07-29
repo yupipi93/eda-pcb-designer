@@ -120,7 +120,34 @@ board's orchestrator scripts under `projects/my-board/tools/` — thin wrappers
 that bind your board's constants and delegate to the `pcb_designer` package
 ([`projects/mt1/tools/`](projects/mt1/tools/) is the reference implementation).
 
-### 3 · Python API
+### 3 · HTTP API (hosted — best for agents in the cloud)
+
+The stateless HTTP API exposes the engine operations over uploaded board
+files — no project checkout, no local KiCad. **No uploaded code is ever
+executed**; the server only performs KiCad file surgery and returns the
+artefact.
+
+```bash
+URL=https://pcb-designer-773810300510.europe-west1.run.app
+
+# Freerouting-as-a-service: autoroute any .kicad_pcb
+curl -F pcb=@board.kicad_pcb "$URL/route" -o routed.kicad_pcb
+
+# DRC report / raytraced renders / JLCPCB-ready fab zip
+curl -F pcb=@board.kicad_pcb "$URL/drc" | jq .by_severity
+curl -F pcb=@board.kicad_pcb "$URL/render?side=both" -o renders.zip
+curl -F pcb=@board.kicad_pcb -F sch=@board.kicad_sch "$URL/fab?version=v1.0.0" -o release.zip
+
+# Validate a YAML config / apply placements
+curl --data-binary @examples/mt1.yaml "$URL/validate"
+curl -F pcb=@board.kicad_pcb -F config=@board.yaml "$URL/place" -o placed.kicad_pcb
+```
+
+`GET /openapi.json` serves the OpenAPI 3 spec (agents self-configure from it);
+binary responses become base64 JSON with `?format=json`. Run it yourself with
+`make docker-api` or deploy with [`deploy/`](deploy/) (Cloud Run-ready).
+
+### 4 · Python API
 
 ```python
 from pcb_designer import load_config
@@ -147,9 +174,11 @@ eda-pcb-designer/
 │   ├── injection.py, routing.py, geometry.py, schematic.py
 │   ├── autorouter.py        ← DSN → freerouting → SES → zone fill
 │   ├── render_dim.py, fab.py, pipeline.py
+│   ├── api.py               ← stateless HTTP API (Flask; `[api]` extra)
 │   ├── render_overlay/      ← photorealistic overlay compositor (+ CLI)
 │   ├── verify/              ← anti-mirror / anti-pin-swap / mounting-hole gate
 │   └── templates/           ← `pcb-designer init` scaffolds
+├── deploy/                  ← Cloud Run image (gunicorn) + Cloud Build config
 ├── docs/                    ← methodology corpus (see below)
 ├── examples/                ← board configs (mt1.yaml, blank-board)
 ├── projects/mt1/            ← WORKED EXAMPLE: kicad sources, tools, renders,
