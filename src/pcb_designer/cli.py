@@ -109,7 +109,11 @@ def cmd_gallery(args: argparse.Namespace) -> int:
             lines.append("")
 
     out.write_text("\n".join(lines), encoding="utf-8")
-    print(f"OK: wrote {out.relative_to(Path.cwd())} ({len(sorted_versions)} versions, "
+    try:
+        shown = out.relative_to(Path.cwd())
+    except ValueError:      # renders dir outside cwd (boards live in their
+        shown = out         # product repo — see "Where boards live", README)
+    print(f"OK: wrote {shown} ({len(sorted_versions)} versions, "
           f"{sum(len(b['files']) for b in groups.values())} files)")
     return 0
 
