@@ -59,7 +59,10 @@ def cmd_gallery(args: argparse.Namespace) -> int:
 
     ver_re = re.compile(r"^(v\d+\.\d+(?:\.\d+)?)(?:-([a-z0-9-]+?))?-(top|bottom|dim-front|dim-back)\.png$")
 
-    groups: dict[str, dict[str, dict[str, str]]] = {}
+    # group by (version, descriptor): multi-style suites (e.g.
+    # <ver>-{normal,dim,realistic,overlay}-<side>.png) each get their
+    # own section instead of overwriting one another
+    groups: dict[tuple, dict[str, str]] = {}
     for p in sorted(renders_dir.iterdir()):
         if not p.is_file() or p.suffix.lower() != ".png":
             continue
@@ -67,15 +70,14 @@ def cmd_gallery(args: argparse.Namespace) -> int:
         if not m:
             continue
         ver, desc, side = m.group(1), m.group(2) or "", m.group(3)
-        bucket = groups.setdefault(ver, {"desc": desc, "files": {}})
-        if desc and not bucket["desc"]:
-            bucket["desc"] = desc
-        bucket["files"][side] = p.name
+        groups.setdefault((ver, desc), {})[side] = p.name
 
-    def version_key(v: str):
-        return tuple(int(x) for x in v.lstrip("v").split("."))
+    def version_key(k: tuple):
+        ver, desc = k
+        return (tuple(int(x) for x in ver.lstrip("v").split(".")), desc)
 
-    sorted_versions = sorted(groups.keys(), key=version_key, reverse=True)
+    sorted_versions = sorted(groups.keys(), key=version_key,
+                             reverse=True)
 
     out = renders_dir / "INDEX.md"
     lines: list[str] = []
@@ -87,10 +89,8 @@ def cmd_gallery(args: argparse.Namespace) -> int:
     lines.append(f"Versions catalogued: **{len(sorted_versions)}**")
     lines.append("")
 
-    for ver in sorted_versions:
-        bucket = groups[ver]
-        desc = bucket["desc"]
-        files = bucket["files"]
+    for ver, desc in sorted_versions:
+        files = groups[(ver, desc)]
         title = f"## {ver}"
         if desc:
             title += f" — {desc.replace('-', ' ')}"
@@ -114,7 +114,7 @@ def cmd_gallery(args: argparse.Namespace) -> int:
     except ValueError:      # renders dir outside cwd (boards live in their
         shown = out         # product repo — see "Where boards live", README)
     print(f"OK: wrote {shown} ({len(sorted_versions)} versions, "
-          f"{sum(len(b['files']) for b in groups.values())} files)")
+          f"{sum(len(files) for files in groups.values())} files)")
     return 0
 
 
