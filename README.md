@@ -147,6 +147,10 @@ curl -F pcb=@board.kicad_pcb "$URL/route" -o routed.kicad_pcb
 # DRC report / raytraced renders / JLCPCB-ready fab zip
 curl -F pcb=@board.kicad_pcb "$URL/drc" | jq .by_severity
 curl -F pcb=@board.kicad_pcb "$URL/render?side=both" -o renders.zip
+# render styles: bare (no 3D bodies) | realistic | realistic-dim | dim (2D DIM
+# plot) | overlay (client sends module photos: -F modules=@modules.yaml
+# -F images=@nano.png, ?calibration=green_bbox for boards with <4 holes)
+curl -F pcb=@board.kicad_pcb "$URL/render?side=top&style=realistic" -o top.png
 curl -F pcb=@board.kicad_pcb -F sch=@board.kicad_sch "$URL/fab?version=v1.0.0" -o release.zip
 
 # Validate a YAML config / apply placements

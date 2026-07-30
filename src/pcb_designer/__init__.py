@@ -27,7 +27,7 @@ example. Use `pcb-designer validate --config <yaml>` to confirm the
 package is wired correctly against a board's config.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = ["ProjectConfig", "load_config"]
 
 from pcb_designer.config import ProjectConfig, load_config

@@ -12,7 +12,8 @@ executed — only KiCad file surgery via the pcb_designer engine.
   POST /validate             YAML config → parsed summary (no files needed)
   POST /place                pcb + config → .kicad_pcb with placements applied
   POST /drc                  pcb → KiCad DRC report (JSON)
-  POST /render               pcb → raytraced PNG (top/bottom/both)
+  POST /render               pcb → PNG render (style = bare | realistic |
+                             realistic-dim | dim | overlay; see _RENDER_STYLES)
   POST /route                pcb → freerouting-autorouted .kicad_pcb
   POST /fab                  pcb + sch → gerbers/drill/BOM/pos release zip
 
@@ -50,6 +51,26 @@ _PCBNEW_LOCK = threading.Lock()
 
 JAR_PATH = Path(os.environ.get("PCB_DESIGNER_JAR", "/app/vendor/freerouting.jar"))
 MAX_ROUTE_PASSES = 50
+
+# /render styles:
+#   bare          raytrace, (model ...) blocks stripped — copper/mask/silk only
+#   realistic     raytrace with the installed 3D component models
+#   realistic-dim realistic + floor/shadows + low lights (moody dark shot)
+#   dim           MT1-style 2D DIM plot per side (PDF + theme → PNG → crop)
+#   overlay       transparent-bg raytrace + client-supplied module photos
+#                 composited by pcb_designer.render_overlay
+_RENDER_STYLES = {"bare", "realistic", "realistic-dim", "dim", "overlay"}
+
+# DIM plot per-side configs (theme, paint-order layer list, mirror) — the
+# generic MT1 recipe: active side's layers LAST; back is a TRUE bottom view.
+_DIM_SIDES = {
+    "top": ("api-dim-front",
+            ["Edge.Cuts", "B.Cu", "B.SilkS", "B.Mask",
+             "F.Mask", "F.Cu", "F.SilkS", "F.Fab"], False),
+    "bottom": ("api-dim-back",
+               ["Edge.Cuts", "F.Cu", "F.SilkS", "F.Mask",
+                "B.Mask", "B.Cu", "B.SilkS", "B.Fab"], True),
+}
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -152,10 +173,14 @@ def create_app() -> Flask:
                 return (out.stdout or out.stderr).strip().splitlines()[0]
             except Exception:
                 return None
+        models_dir = Path("/usr/share/kicad/3dmodels")
         return {"status": "ok", "service": "pcb-designer", "version": __version__,
                 "toolchain": {"kicad_cli": _v(["kicad-cli", "version"]),
                               "java": _v(["java", "-version"]),
-                              "freerouting_jar": JAR_PATH.exists()}}
+                              "freerouting_jar": JAR_PATH.exists(),
+                              "kicad_3dmodels": models_dir.is_dir()
+                              and any(models_dir.iterdir())},
+                "render_styles": sorted(_RENDER_STYLES)}
 
     @app.get("/")
     def root():
@@ -171,7 +196,9 @@ def create_app() -> Flask:
                 "POST /validate": "YAML config → parsed summary",
                 "POST /place": "pcb + config → .kicad_pcb with placements applied",
                 "POST /drc": "pcb → KiCad DRC report (JSON)",
-                "POST /render": "pcb → raytraced PNG (?side=top|bottom|both)",
+                "POST /render": ("pcb → PNG (?side=top|bottom|both&style=bare|"
+                                "realistic|realistic-dim|dim|overlay; overlay "
+                                "adds multipart 'modules' yaml + 'images' files)"),
                 "POST /route": "pcb → freerouting-autorouted .kicad_pcb",
                 "POST /fab": "pcb + sch → gerbers/BOM/pos release zip (?version=vX.Y.Z)",
             },
@@ -249,6 +276,10 @@ def create_app() -> Flask:
         side = request.args.get("side", "top")
         if side not in ("top", "bottom", "both"):
             return _err("bad_request", "side must be top | bottom | both", 400)
+        style = request.args.get("style", "bare")
+        if style not in _RENDER_STYLES:
+            return _err("bad_request",
+                        f"style must be one of {sorted(_RENDER_STYLES)}", 400)
         background = request.args.get("background", "opaque")
         if background not in ("opaque", "transparent", "default"):
             return _err("bad_request",
@@ -256,31 +287,138 @@ def create_app() -> Flask:
         missing = _need_kicad_cli()
         if missing:
             return missing
+        sides = ("top", "bottom") if side == "both" else (side,)
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
             pcb, err = _save_upload("pcb", tmp, "board.kicad_pcb")
             if err:
                 return err
+
+            if style == "overlay":
+                return _render_overlay(tmp, pcb, sides)
+
+            if style == "bare":
+                # strip every (model ...) block so the raytrace shows copper/
+                # mask/silk only, even with kicad-packages3d installed
+                from pcb_designer.kicad_pcb_io import strip_3d_model_blocks
+                pcb.write_text(strip_3d_model_blocks(
+                    pcb.read_text(encoding="utf-8")), encoding="utf-8")
+
             pngs = []
-            for s in (("top", "bottom") if side == "both" else (side,)):
+            for s in sides:
                 png = tmp / f"render-{s}.png"
-                r = subprocess.run(["kicad-cli", "pcb", "render", str(pcb),
-                                    "--side", s, "--background", background,
-                                    "--output", str(png)],
-                                   capture_output=True, text=True, check=False)
-                if r.returncode != 0 or not png.exists():
+                if style == "dim":
+                    err = _render_dim_side(pcb, s, png, tmp)
+                else:
+                    bg = "opaque" if style == "realistic-dim" else background
+                    cmd = ["kicad-cli", "pcb", "render", str(pcb),
+                           "--side", s, "--background", bg,
+                           "--output", str(png)]
+                    if style in ("realistic", "realistic-dim"):
+                        cmd += ["--quality", "high"]
+                    if style == "realistic-dim":
+                        cmd += ["--floor",
+                                "--light-top", "0.25", "--light-bottom", "0.12",
+                                "--light-side", "0.2", "--light-camera", "0.12"]
+                    r = subprocess.run(cmd, capture_output=True, text=True,
+                                       check=False)
+                    err = (None if r.returncode == 0 and png.exists() else
+                           (r.stderr or r.stdout).strip()[-500:])
+                if err:
                     return _err("render_failed",
-                                f"kicad-cli pcb render ({s}) exited {r.returncode}: "
-                                f"{(r.stderr or r.stdout).strip()[-500:]}", 500)
+                                f"render ({style}/{s}) failed: {err}", 500)
                 pngs.append(png)
             if len(pngs) == 1:
-                return _file_or_json(pngs[0], mimetype="image/png", meta={"side": side})
+                return _file_or_json(pngs[0], mimetype="image/png",
+                                     meta={"side": side, "style": style})
             bundle = tmp / "renders.zip"
             with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as z:
                 for p in pngs:
                     z.write(p, p.name)
             return _file_or_json(bundle, mimetype="application/zip",
-                                 meta={"side": side})
+                                 meta={"side": side, "style": style})
+
+    def _render_dim_side(pcb: Path, s: str, png: Path, tmp: Path):
+        """MT1-style 2D DIM plot: kicad-cli PDF with the dim theme →
+        pdftocairo → crop (pcb_designer.render_dim)."""
+        from pcb_designer.render_dim import install_themes, render_side
+        themes_src = Path(os.environ.get("PCB_DESIGNER_THEMES", "/app/themes"))
+        if not themes_src.is_dir():
+            return f"themes dir not found: {themes_src}"
+        install_themes(themes_src, prefix="api-")
+        theme, layers, mirror = _DIM_SIDES[s]
+        work = tmp / "dim-work"          # render_side's intermediate PDF/PNG
+        work.mkdir(exist_ok=True)        # share the output's stem — keep them
+        try:                             # in their own dir to avoid collision
+            render_side(pcb, layers, theme, png, work, mirror=mirror)
+        except Exception as e:                      # pragma: no cover
+            return f"{type(e).__name__}: {e}"
+        return None if png.exists() else "dim plot produced no PNG"
+
+    def _render_overlay(tmp: Path, pcb: Path, sides):
+        """Photo-overlay compositing: client uploads `modules` (yaml) plus
+        one `images` file per module photo; the base render is a transparent-
+        background raytrace (LESSONS_LEARNED §22), module photos are pasted
+        by pcb_designer.render_overlay."""
+        from pcb_designer.render_overlay.compositor import (
+            compose_side,
+            load_module_config,
+        )
+        modules_yaml, err = _save_upload("modules", tmp, "modules.yaml")
+        if err:
+            return err
+        images_dir = tmp / "component-images"
+        images_dir.mkdir()
+        for f in request.files.getlist("images"):
+            name = Path(f.filename or "").name
+            if not name:
+                return _err("bad_request", "an images part has no filename", 400)
+            f.save(images_dir / name)
+        calibration = request.args.get("calibration", "mounting_holes")
+        if calibration not in ("mounting_holes", "green_bbox"):
+            return _err("bad_request",
+                        "calibration must be mounting_holes | green_bbox", 400)
+        ann = request.args.get("annotations",
+                               "pcb,anchors,holes,modules,pins").strip()
+        annotate = ann.lower() not in ("none", "")
+        cats = tuple(c.strip() for c in ann.split(",") if c.strip())
+        try:
+            modules = load_module_config(modules_yaml, images_dir)
+        except Exception as e:
+            return _err("bad_request", f"invalid modules.yaml: {e}", 400)
+
+        pngs = []
+        for s in sides:
+            base = tmp / f"base-{s}.png"
+            r = subprocess.run(["kicad-cli", "pcb", "render", str(pcb),
+                                "--side", s, "--background", "transparent",
+                                "--quality", "high", "--output", str(base)],
+                               capture_output=True, text=True, check=False)
+            if r.returncode != 0 or not base.exists():
+                return _err("render_failed",
+                            f"base render ({s}) exited {r.returncode}: "
+                            f"{(r.stderr or r.stdout).strip()[-500:]}", 500)
+            out = tmp / f"render-overlay-{s}.png"
+            try:
+                result = compose_side(side=s, base_render_path=base,
+                                      pcb_path=pcb, modules=modules,
+                                      output_path=out, annotate=annotate,
+                                      annotation_categories=cats,
+                                      calibration=calibration)
+            except Exception as e:
+                return _err("overlay_failed", f"{type(e).__name__}: {e}", 500)
+            app.logger.info("overlay %s: %s modules, skipped=%s",
+                            s, result["rendered"], result["skipped"])
+            pngs.append(out)
+        if len(pngs) == 1:
+            return _file_or_json(pngs[0], mimetype="image/png",
+                                 meta={"style": "overlay"})
+        bundle = tmp / "renders.zip"
+        with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as z:
+            for p in pngs:
+                z.write(p, p.name)
+        return _file_or_json(bundle, mimetype="application/zip",
+                             meta={"style": "overlay"})
 
     @app.post("/route")
     def route():
@@ -375,7 +513,9 @@ and AI agents. <a href="https://github.com/yupipi93/eda-pcb-designer">Docs on Gi
 <tr><td><code>POST /validate</code></td><td>YAML board config → parsed summary</td></tr>
 <tr><td><code>POST /place</code></td><td>pcb + config → placements applied</td></tr>
 <tr><td><code>POST /drc</code></td><td>pcb → KiCad DRC report (JSON)</td></tr>
-<tr><td><code>POST /render</code></td><td>pcb → raytraced PNG (<code>?side=top|bottom|both</code>)</td></tr>
+<tr><td><code>POST /render</code></td><td>pcb → PNG
+  (<code>?side=top|bottom|both&amp;style=bare|realistic|realistic-dim|dim|overlay</code>;
+  overlay takes multipart <code>modules</code> yaml + <code>images</code> files)</td></tr>
 <tr><td><code>POST /route</code></td><td>pcb → freerouting-autorouted pcb</td></tr>
 <tr><td><code>POST /fab</code></td><td>pcb + sch → gerbers/BOM/pos zip</td></tr>
 </table>
@@ -435,16 +575,42 @@ _OPENAPI = {
                           "500": {"description": "DRC failed"},
                           "501": {"description": "kicad-cli missing"}}}},
         "/render": {"post": {
-            "summary": "Raytraced PNG render of a .kicad_pcb",
+            "summary": "PNG render of a .kicad_pcb (raytrace, DIM plot or "
+                       "photo overlay)",
             "parameters": [
                 {"name": "side", "in": "query",
                  "schema": {"enum": ["top", "bottom", "both"], "default": "top"}},
+                {"name": "style", "in": "query",
+                 "description": "bare = raytrace without 3D models; realistic = "
+                                "raytrace with kicad-packages3d bodies; "
+                                "realistic-dim = realistic + floor/shadows + low "
+                                "lights; dim = 2D DIM-theme plot (MT1 style); "
+                                "overlay = transparent raytrace + client module "
+                                "photos composited on top",
+                 "schema": {"enum": ["bare", "realistic", "realistic-dim",
+                                     "dim", "overlay"], "default": "bare"}},
                 {"name": "background", "in": "query",
                  "schema": {"enum": ["opaque", "transparent", "default"],
-                            "default": "opaque"}}],
+                            "default": "opaque"}},
+                {"name": "calibration", "in": "query",
+                 "description": "overlay only: mm→px mapping source "
+                                "(green_bbox for boards with <4 holes)",
+                 "schema": {"enum": ["mounting_holes", "green_bbox"],
+                            "default": "mounting_holes"}},
+                {"name": "annotations", "in": "query",
+                 "description": "overlay only: csv of pcb,anchors,holes,"
+                                "modules,pins — or 'none'",
+                 "schema": {"type": "string",
+                            "default": "pcb,anchors,holes,modules,pins"}}],
             "requestBody": {"content": {"multipart/form-data": {"schema": {
                 "type": "object", "required": ["pcb"], "properties": {
-                    "pcb": {"type": "string", "format": "binary"}}}}}},
+                    "pcb": {"type": "string", "format": "binary"},
+                    "modules": {"type": "string", "format": "binary",
+                                "description": "overlay only: modules.yaml"},
+                    "images": {"type": "array", "description":
+                               "overlay only: one part per module photo",
+                               "items": {"type": "string",
+                                         "format": "binary"}}}}}}},
             "responses": _FILE_RESP}},
         "/route": {"post": {
             "summary": "Autoroute a .kicad_pcb with freerouting (strip tracks → "

@@ -15,7 +15,7 @@ RUN apt-get update \
  && add-apt-repository -y ppa:kicad/kicad-9.0-releases \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      kicad kicad-symbols kicad-footprints \
+      kicad kicad-symbols kicad-footprints kicad-packages3d \
       openjdk-21-jre-headless \
       poppler-utils fonts-dejavu-core \
       python3 python3-pip python3-venv \

@@ -121,3 +121,34 @@ def test_render_bad_side_is_400(client):
         "pcb": (io.BytesIO(b"x"), "board.kicad_pcb"),
     }, content_type="multipart/form-data")
     assert r.status_code == 400
+
+
+def test_render_bad_style_is_400(client):
+    r = client.post("/render?style=sepia", data={
+        "pcb": (io.BytesIO(b"x"), "board.kicad_pcb"),
+    }, content_type="multipart/form-data")
+    assert r.status_code == 400
+    assert "style" in r.get_json()["error"]
+
+
+def test_render_overlay_requires_modules(client):
+    # style=overlay without a 'modules' yaml must 400 before any rendering
+    r = client.post("/render?style=overlay", data={
+        "pcb": (io.BytesIO(b"x"), "board.kicad_pcb"),
+    }, content_type="multipart/form-data")
+    assert r.status_code in (400, 501)   # 501 only if kicad-cli missing
+    if r.status_code == 400:
+        assert "modules" in r.get_json()["error"]
+
+
+def test_render_overlay_bad_calibration_is_400(client):
+    r = client.post("/render?style=overlay&calibration=nope", data={
+        "pcb": (io.BytesIO(b"x"), "board.kicad_pcb"),
+        "modules": (io.BytesIO(b"modules: {}"), "modules.yaml"),
+    }, content_type="multipart/form-data")
+    assert r.status_code in (400, 501)
+
+
+def test_health_reports_render_styles(client):
+    styles = client.get("/health").get_json()["render_styles"]
+    assert set(styles) == {"bare", "realistic", "realistic-dim", "dim", "overlay"}
