@@ -85,6 +85,11 @@ convention, cosmetic schematic reorganisation.
 ```bash
 pcb-designer validate  --config <yaml>            # typecheck the config
 pcb-designer init <name> [--template minimal|full_features] [--vendor ORG]
+#   ↳ then MOVE the scaffold into the product repo as <product>/pcb/ — real
+#     boards live with their product (multi-rocket-avionica/pcb/,
+#     arduino-lemon-piano/pcb/); this repo keeps only the toolkit + the MT1
+#     worked example. Board tools import the toolkit as a sibling repo
+#     (sys.path ../eda-pcb-designer/src) and run inside its Docker image.
 pcb-designer schematic --config <yaml>            # build .kicad_sch programmatically
 pcb-designer place     --config <yaml>            # place + flip + DRC + renders
 pcb-designer route     --config <yaml>            # freerouting + GND zone + stitches

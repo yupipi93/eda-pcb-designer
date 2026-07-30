@@ -199,9 +199,6 @@ eda-pcb-designer/
 ├── examples/                ← board configs (mt1.yaml, blank-board)
 ├── projects/mt1/            ← WORKED EXAMPLE: kicad sources, tools, renders,
 │                              validation evidence, fabricated release v0.1.4
-├── projects/lemon-piano/    ← Lemon Piano V5.5 board (arduino-lemon-piano →
-│                              PCB), built end-to-end via the CLOUD API:
-│                              /place /route /drc /render /fab (release v0.1.0)
 ├── themes/                  ← KiCad DIM render color themes
 ├── vendor/                  ← freerouting fetch script (JAR not committed)
 └── tests/                   ← 42 unit tests (config, verify, holes, pins)
@@ -212,6 +209,18 @@ The package/example split is the core design rule: **algorithms live in
 the board's YAML + `projects/<board>/tools/`**. The pipeline stages
 subprocess-call the board's orchestrator scripts (resolved via `project.tools_dir`
 in the YAML), so adding a second board never touches the package.
+
+**Where boards live**: a real board belongs to its PRODUCT's repo under
+`pcb/` — config, docs, tools, ground-truth, kicad sources, renders,
+validation evidence and releases all together — with the board's tools
+importing this toolkit as a sibling repo (`../eda-pcb-designer/src`) and
+running the generative steps in this repo's Docker image. That is how MT1
+lives upstream (`multi-rocket-avionica/pcb/`) and how the Lemon Piano V5.5
+board lives in `arduino-lemon-piano/pcb/` (designed end-to-end through the
+hosted API: /place /route /drc /render /fab, release v0.1.0). The
+`projects/mt1/` copy here is the vendored worked example the docs and
+tests reference — scaffold with `pcb-designer init`, then move the
+project folder into the product repo's `pcb/`.
 
 ## For AI agents
 
