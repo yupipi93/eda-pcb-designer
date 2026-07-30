@@ -33,6 +33,10 @@ RUN /app/vendor/fetch-freerouting.sh
 
 COPY . /app
 
+# extra 3D models missing from kicad-packages3d (e.g. the orange 3 mm LED
+# derived from the stock red one — see assets/3dmodels/README.md)
+COPY assets/3dmodels/ /usr/share/kicad/3dmodels/
+
 # --system-site-packages so the venv can also see KiCad's pcbnew module
 # (needed by the route stage's DSN/SES round-trip).
 RUN python3 -m venv --system-site-packages /opt/venv \

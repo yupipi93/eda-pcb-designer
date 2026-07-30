@@ -166,9 +166,11 @@ def place_and_flip(text: str, placements: dict) -> tuple:
     1. Find its (footprint ...) block via the Reference property.
     2. Rewrite its (at x y rot) line.
     3. If the target layer differs from current, flip via LAYER_PAIRS.
-    4. If target is B.Cu, also strip (model "...") sub-blocks every run
-       (idempotent, avoids the off-by-20mm render misalignment from
-       LESSONS_LEARNED §5).
+    4. If target is B.Cu AND the footprint is a tag-swap flip (no
+       '(justify mirror)' text — i.e. NOT natively mirrored), strip
+       (model "...") sub-blocks every run (idempotent, avoids the
+       off-by-20mm render misalignment from LESSONS_LEARNED §5).
+       Natively flipped footprints keep their models.
 
     Returns (new_text, updated_count, not_found_refs).
     """
@@ -206,10 +208,14 @@ def place_and_flip(text: str, placements: dict) -> tuple:
             new_block = flip_to_back(new_block)
         elif target_layer == "F.Cu" and current_layer == "B.Cu":
             new_block = flip_to_front(new_block)
-        # Strip 3D models from B.Cu footprints every run (idempotent) — the
-        # auto-flip in KiCad's renderer misaligns the model for layer-swapped
-        # footprints, so we just don't render them on the back side.
-        if target_layer == "B.Cu":
+        # Strip 3D models ONLY from tag-swap-flipped B.Cu footprints — for
+        # those, KiCad's renderer auto-flip misaligns the model
+        # (LESSONS_LEARNED §5). A NATIVELY flipped footprint (geometry
+        # mirrored, text carrying '(justify mirror)' — same marker the C2
+        # verifier keys on) renders its model correctly and must keep it,
+        # or the realistic bottom render loses every back-side part
+        # (lemon-piano bug, 2026-07-30).
+        if target_layer == "B.Cu" and "(justify mirror)" not in new_block:
             new_block = strip_3d_model_blocks(new_block)
 
         text = text[:fp_start] + new_block + text[fp_end:]
