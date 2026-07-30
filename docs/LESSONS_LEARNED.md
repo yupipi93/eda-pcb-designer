@@ -348,3 +348,23 @@ pista contra pad MH. Síntesis completa:
 - [`FAB_ORDER_GUIDE.md`](FAB_ORDER_GUIDE.md) — JLCPCB / PCBWay quote-to-order
 - [`../AGENTS.md`](../AGENTS.md) — manual obligatorio para LLMs antes de tocar el PCB
 - MT1 source incidents (v0.0.1 → v0.1.4): upstream repo `multi-rocket-avionica`, `pcb/projects/mt1/docs/CHANGELOG.md`
+
+## §25 — `pad.GetLayer()` LIES for flipped footprints — use `IsOnLayer()`
+
+A pad belonging to a footprint flipped to B.Cu still reports
+`GetLayer() == F_Cu` in the pcbnew Python API. Any layer test built on
+`GetLayer()` silently exempts every bottom-side SMD pad from clearance
+checks (incident: lemon-piano v0.2.0 — the post-route widener grew a
+B.Cu track into a flipped 0805's pad, 0.1777 mm actual vs 0.2 required,
+found by /drc). Always test pads with `pad.IsOnLayer(layer)`.
+
+## §26 — Overlay photo rotation: `PIL_rot = −pcb_rot + image_rot` (calibrate the DATA)
+
+`render_overlay.module_overlay` composes the pasted photo's rotation
+with a NEGATED footprint angle. MT1 never exercised the sign (anchors
+at 180°/bottom); the first 90°-anchor board (lemon-piano) landed its
+Nano photo 180° off on the first try. The convention is baked into
+MT1's calibrated modules.yaml values — do NOT "fix" the sign in code;
+calibrate each board's `image_rotation_deg` against a render, exactly
+like MT1 did. The overlay itself shows the error immediately (that is
+its job — see POST-MORTEM-001).
