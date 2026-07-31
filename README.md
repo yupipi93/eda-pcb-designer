@@ -201,6 +201,26 @@ the board's `exports3d_output_dir` (default `projects/<name>/3d/`):
 Both include tracks, pads, zones, silkscreen and soldermask, so they match the
 `realistic` render rather than a bare outline.
 
+**In VS Code — one click.** Both repos ship a `.vscode/extensions.json`
+recommending [`thingraph.cad-viewer`](https://marketplace.visualstudio.com/items?itemName=thingraph.cad-viewer),
+so VS Code offers to install it the first time you open the workspace
+(Extensions view → *Recommended*). Or do it explicitly:
+
+```bash
+code --install-extension thingraph.cad-viewer
+```
+
+Then **double-click the `.glb`** — or the `.step` — and it opens in a tab you
+can drag to rotate. It is the one extension that handles both formats this
+stage emits, and it bundles `occt-import-js.wasm` (OpenCascade), so its STEP
+support is a real geometry kernel rather than a marketing claim. Free,
+read-only, ~24 MB.
+
+> Not to be confused with **glTF Tools** (`cesium.gltf-vscode`), which is far
+> more popular (235 k installs) but is a *format* tool: it validates and
+> converts glTF/GLB and registers no viewer for `.glb`, so you would have to
+> import to `.gltf` first just to look at it.
+
 **Web, nothing to install.** Open <https://3dviewer.net> and drag the `.glb`
 in. Drag to rotate, scroll to zoom. It renders in your browser — the file is
 not uploaded to a server. It also opens `.step`, which is handy for checking

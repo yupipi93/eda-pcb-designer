@@ -1,0 +1,15 @@
+{
+  // VS Code offers to install these when the workspace is opened
+  // (Extensions view -> "Recommended"), so the 3D outputs of the
+  // `export3d` stage are viewable without leaving the editor.
+  "recommendations": [
+    // CAD Viewer — opens .glb AND .step (plus obj/fbx/stl/ifc/iges) in a
+    // 3D view on double-click. Both formats matter here: export3d emits a
+    // GLB for looking at the board and a STEP for CAD/enclosure work, and
+    // this is the only extension found that handles both. It bundles
+    // occt-import-js.wasm (OpenCascade), so STEP is a real geometry kernel
+    // rather than a marketing claim. Free, read-only, ~24 MB.
+    "thingraph.cad-viewer"
+  ],
+  "unwantedRecommendations": []
+}

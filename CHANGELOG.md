@@ -38,6 +38,16 @@ All notable changes to pcb-designer. Format loosely follows Keep a Changelog.
   **exactly one** filename suffix on purpose: stripping further would offer
   `LED.step` for `LED_D3.0mm_Orange.step`, i.e. a body of a different size —
   a wrong-sized part is worse than an absent one, because absent is visible.
+- **VS Code viewer recommendation** — `.vscode/extensions.json` recommends
+  `thingraph.cad-viewer`, so the editor offers to install it on first open and
+  a `.glb` (or `.step`) opens in a rotatable tab on double-click. It is the one
+  extension found that handles *both* formats `export3d` emits, and it bundles
+  `occt-import-js.wasm` (OpenCascade), so STEP is a real geometry kernel.
+  Deliberately **not** the far more popular `cesium.gltf-vscode` (235 k
+  installs): that one validates and converts glTF/GLB but registers no viewer
+  for `.glb`, so looking at a binary model means importing it to `.gltf`
+  first. `VIEWING_HINT` (printed by the CLI and the pipeline stage) now lists
+  the VS Code, web and native options.
 
 ## [0.2.0] — 2026-07-29
 

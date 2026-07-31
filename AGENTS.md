@@ -36,6 +36,9 @@ pcb-designer pipeline --config <board>.yaml --stages place,route,render
 #    Rotatable 3D models (GLB for viewers, STEP for CAD). In the default
 #    chain; --fetch-models pulls the few component bodies a slim host lacks.
 pcb-designer export3d --config <board>.yaml [--fetch-models]
+#    View the .glb/.step in VS Code (recommended in .vscode/extensions.json,
+#    so the editor offers it on first open):
+#      code --install-extension thingraph.cad-viewer
 
 # 3. Inspect: DRC report under projects/<board>/validation/, renders under
 #    projects/<board>/renders/. LOOK at the renders — DRC can't see "wrong".

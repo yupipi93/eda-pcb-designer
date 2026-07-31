@@ -2,10 +2,12 @@
 
 Turns a routed `.kicad_pcb` into models you can rotate and inspect:
 
-- **GLB** — self-contained binary glTF. Opens in any browser-based viewer
-  (drag it onto <https://3dviewer.net>), in the lightweight native viewer
-  `f3d`, and in Windows/macOS built-in 3D viewers. This is the one to hand
-  to a human who just wants to look at the board.
+- **GLB** — self-contained binary glTF. Opens in a VS Code tab with the
+  `thingraph.cad-viewer` extension (recommended from
+  `.vscode/extensions.json`, so the editor offers to install it), in any
+  browser-based viewer (drag it onto <https://3dviewer.net>), in the
+  lightweight native viewer `f3d`, and in Windows/macOS built-in 3D viewers.
+  This is the one to hand to a human who just wants to look at the board.
 - **STEP** — the CAD interchange standard, for FreeCAD / Fusion / enclosure
   design and real fit checks.
 
@@ -37,6 +39,7 @@ Public API:
 - `export_glb(pcb_path, out_path, ...)` / `export_step(...)`.
 - `export_3d(pcb_path, out_dir, version, ...)` — both formats + a report.
 - `VIEWING_HINT` — ready-made "how do I look at this" text for CLIs.
+- `VSCODE_EXTENSION` — the recommended VS Code viewer extension id.
 """
 from __future__ import annotations
 
@@ -53,6 +56,7 @@ __all__ = [
     "MODEL_VAR",
     "UPSTREAM_BASE",
     "VIEWING_HINT",
+    "VSCODE_EXTENSION",
     "Export3DResult",
     "export_3d",
     "export_glb",
@@ -82,10 +86,19 @@ _VISUAL_FLAGS = [
 _MODEL_RE = re.compile(r'\(model\s+"\$\{' + MODEL_VAR + r'\}/([^"]+)"')
 
 VIEWING_HINT = """How to look at the .glb:
+  • in VS Code             — code --install-extension thingraph.cad-viewer
+    then double-click the file (also opens the .step; the repo recommends it
+    via .vscode/extensions.json, so VS Code offers it on first open)
   • web, nothing to install — open https://3dviewer.net and drag the file in
     (it renders in your browser; the file is not uploaded anywhere)
   • local, lightweight     — sudo apt install f3d   then   f3d <file.glb>
   • the .step file is for CAD (FreeCAD, Fusion) and enclosure fit checks"""
+
+# The one VS Code extension found that opens BOTH formats this module emits
+# (.glb and .step). It bundles occt-import-js.wasm (OpenCascade), so its STEP
+# support is a real geometry kernel. Recommended from .vscode/extensions.json
+# so the editor offers to install it rather than the user hunting for it.
+VSCODE_EXTENSION = "thingraph.cad-viewer"
 
 
 @dataclass
