@@ -33,6 +33,10 @@ pcb-designer schematic --config <board>.yaml
 # 2. Apply placement + autoroute + render (idempotent, re-run freely)
 pcb-designer pipeline --config <board>.yaml --stages place,route,render
 
+#    Rotatable 3D models (GLB for viewers, STEP for CAD). In the default
+#    chain; --fetch-models pulls the few component bodies a slim host lacks.
+pcb-designer export3d --config <board>.yaml [--fetch-models]
+
 # 3. Inspect: DRC report under projects/<board>/validation/, renders under
 #    projects/<board>/renders/. LOOK at the renders — DRC can't see "wrong".
 
@@ -95,19 +99,21 @@ pcb-designer place     --config <yaml>            # place + flip + DRC + renders
 pcb-designer route     --config <yaml>            # freerouting + GND zone + stitches
 pcb-designer render    --config <yaml>            # DIM PDF→PNG renders
 pcb-designer pipeline  --config <yaml> --stages place,route,render
+pcb-designer export3d  --config <yaml> [--formats glb,step] [--fetch-models]
 pcb-designer fab       --config <yaml> --version vX.Y.Z
 pcb-designer gallery   projects/<board>/renders   # regenerate INDEX.md
 python3 -m pcb_designer.render_overlay.cli --project-dir projects/<board> --version vX.Y.Z
 ```
 
-Environment: stages `place/route/render/fab` need KiCad 9 (+ Java 21 and
+Environment: stages `place/route/render/export3d/fab` need KiCad 9 (+ Java 21 and
 `./vendor/fetch-freerouting.sh` for `route`) — see the table in
 [`README.md`](README.md#system-requirements-per-stage). If the host lacks them,
 use the Docker image (`make docker`), which runs the full pipeline — or, for
 one-off operations without any local toolchain, the hosted **HTTP API**
 (`https://pcb-designer.scv.multitecua.com`, spec at `GET /openapi.json`):
-upload a `.kicad_pcb`, get back the routed board, DRC report, render or fab
-zip. See README §"HTTP API".
+upload a `.kicad_pcb`, get back the routed board, DRC report, render, fab zip
+or a rotatable 3D model (`POST /export3d?format=glb|step|both`). See README
+§"HTTP API" and §"Look at the board in 3D".
 
 ## Session bootstrap prompt
 

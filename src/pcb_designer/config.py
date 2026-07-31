@@ -20,6 +20,8 @@ YAML schema:
       renders_output_dir: <path>
       tools_dir: <path, optional — board orchestrator scripts;
                   defaults to projects/<name>/tools>
+      exports3d_output_dir: <path, optional — GLB/STEP 3D exports;
+                            defaults to projects/<name>/3d>
       releases_output_dir: <path, optional — fab output;
                   defaults to projects/<name>/releases>
 
@@ -117,6 +119,7 @@ class ProjectMeta:
     renders_output_dir: str = ""
     tools_dir: str = ""
     releases_output_dir: str = ""
+    exports3d_output_dir: str = ""
 
 
 @dataclass(frozen=True)
@@ -154,6 +157,11 @@ class ProjectConfig:
     def tools_dir(self, repo_root: Path) -> Path:
         """Board orchestrator scripts dir (default: projects/<name>/tools)."""
         rel = self.project.tools_dir or f"projects/{self.project.name}/tools"
+        return Path(repo_root) / rel
+
+    def exports3d_dir(self, repo_root: Path) -> Path:
+        """Where `export3d` writes GLB/STEP models (regenerable artefacts)."""
+        rel = self.project.exports3d_output_dir or f"projects/{self.project.name}/3d"
         return Path(repo_root) / rel
 
     def releases_dir(self, repo_root: Path) -> Path:
@@ -201,6 +209,7 @@ def load_config(path: str | Path) -> ProjectConfig:
         renders_output_dir=proj_raw.get("renders_output_dir", ""),
         tools_dir=proj_raw.get("tools_dir", ""),
         releases_output_dir=proj_raw.get("releases_output_dir", ""),
+        exports3d_output_dir=proj_raw.get("exports3d_output_dir", ""),
     )
 
     geom = raw.get("geometry") or {}

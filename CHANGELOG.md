@@ -4,6 +4,41 @@ All notable changes to pcb-designer. Format loosely follows Keep a Changelog.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-31
+
+### Added
+- **`export3d` stage — rotatable 3D models, in the default pipeline**
+  (`pcb_designer.export3d`). Emits a **GLB** (binary glTF, opens in any
+  browser viewer such as <https://3dviewer.net> or the light native `f3d`)
+  and a **STEP** (CAD interchange, for FreeCAD/Fusion and enclosure fit
+  checks). Both carry tracks, pads, zones, silkscreen and soldermask, so the
+  model matches the `realistic` render rather than a bare outline.
+  - New default stage order: `schematic → place → route → render → verify →
+    export3d → fab`. A rotatable model is the cheapest way for a human to
+    sanity-check a board, so it is opt-out, not opt-in.
+  - `pcb-designer export3d --config <yaml> [--formats glb,step]
+    [--fetch-models]`.
+  - `POST /export3d?format=glb|step|both` on the HTTP service (`both`
+    returns a zip). The service image ships the 3D model library, so
+    component bodies always resolve there.
+  - New optional config key `project.exports3d_output_dir` (defaults to
+    `projects/<name>/3d`).
+- **Missing-body detection.** Component bodies are not in the `.kicad_pcb` —
+  footprints only store *paths* into the multi-GB `kicad-packages3d` library,
+  and `kicad-cli` skips models it cannot resolve **silently** (no warning, no
+  DRC item, no non-zero exit). `referenced_models()` / `missing_models()`
+  surface that, the stage prints a loud warning, and `Export3DResult.complete`
+  lets callers gate on it. Found on the lemon-piano board, where D1 shipped
+  bodiless through four releases because nothing could detect it.
+- **`fetch_models()`** — pulls only the handful of bodies a board actually
+  references (~15 files / ~1.5 MB for a typical board, cached) for hosts that
+  have KiCad but not the multi-GB model library, e.g. the slim Docker image.
+  Colour variants missing upstream (`LED_D3.0mm_Orange.step`) fall back to
+  their base body, and the swap is reported, never hidden. The fallback drops
+  **exactly one** filename suffix on purpose: stripping further would offer
+  `LED.step` for `LED_D3.0mm_Orange.step`, i.e. a body of a different size —
+  a wrong-sized part is worse than an absent one, because absent is visible.
+
 ## [0.2.0] — 2026-07-29
 
 ### Added

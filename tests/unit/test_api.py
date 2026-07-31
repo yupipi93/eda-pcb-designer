@@ -152,3 +152,36 @@ def test_render_overlay_bad_calibration_is_400(client):
 def test_health_reports_render_styles(client):
     styles = client.get("/health").get_json()["render_styles"]
     assert set(styles) == {"bare", "realistic", "realistic-dim", "dim", "overlay"}
+
+
+# ── /export3d ────────────────────────────────────────────────────────────────
+
+def test_export3d_rejects_unknown_format(client):
+    r = client.post("/export3d?format=obj",
+                    data={"pcb": (io.BytesIO(b"(kicad_pcb)"), "b.kicad_pcb")},
+                    content_type="multipart/form-data")
+    # 400 on a bad format everywhere kicad-cli exists; 501 where it doesn't.
+    assert r.status_code in (400, 501)
+    if r.status_code == 400:
+        assert "glb" in r.get_json()["error"]
+
+
+def test_export3d_requires_a_pcb(client):
+    r = client.post("/export3d", data={}, content_type="multipart/form-data")
+    assert r.status_code in (400, 501)
+
+
+def test_export3d_is_advertised(client):
+    assert "POST /export3d" in client.get("/").get_json()["endpoints"]
+    assert "/export3d" in client.get("/openapi.json").get_json()["paths"]
+
+
+@pytest.mark.skipif(not shutil.which("kicad-cli"), reason="needs kicad-cli")
+def test_export3d_glb_on_a_real_board(client):
+    r = client.post("/export3d?format=glb",
+                    data={"pcb": (io.BytesIO(FIXTURE_PCB.read_bytes()),
+                                  "b.kicad_pcb")},
+                    content_type="multipart/form-data")
+    assert r.status_code == 200, r.data[:400]
+    assert r.data[:4] == b"glTF"          # binary glTF magic
+

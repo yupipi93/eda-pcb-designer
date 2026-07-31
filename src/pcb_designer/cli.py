@@ -156,6 +156,31 @@ def cmd_fab(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_export3d(args: argparse.Namespace) -> int:
+    """Emit GLB + STEP models for interactive 3D inspection."""
+    from pcb_designer.export3d import VIEWING_HINT, export_3d
+    cfg = load_config(args.config)
+    repo_root = Path.cwd()
+    version = args.version or cfg.project.version
+    formats = tuple(f.strip() for f in args.formats.split(",") if f.strip())
+    res = export_3d(cfg.pcb_path(repo_root), cfg.exports3d_dir(repo_root), version,
+                    formats=formats, fetch_missing=args.fetch_models)
+    for fmt, path in res.files.items():
+        print(f"  {fmt}: {path} ({path.stat().st_size / 1e6:.1f} MB)")
+    if res.fetched_models:
+        print(f"  fetched {len(res.fetched_models)} model(s) from upstream")
+    for rel, sub_ in res.substituted_models.items():
+        print(f"  substituted {rel} -> {sub_} (upstream has no such body)")
+    if res.missing_models:
+        print(f"  [WARN] {len(res.missing_models)} body/bodies unresolved — those parts "
+              f"appear as bare pads:")
+        for m in res.missing_models[:8]:
+            print(f"         {m}")
+        print("         install kicad-packages3d, or re-run with --fetch-models.")
+    print(VIEWING_HINT)
+    return 0
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     """Scaffold a new board project + YAML config from a packaged template.
 
@@ -260,6 +285,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_fab.add_argument("--version",
                        help="Override the version tag (default: cfg.project.version).")
     p_fab.set_defaults(func=cmd_fab)
+
+    p_3d = sub.add_parser("export3d",
+                          help="Emit GLB + STEP models for interactive 3D viewing.")
+    p_3d.add_argument("--config", required=True, type=Path)
+    p_3d.add_argument("--version",
+                      help="Override the version tag (default: cfg.project.version).")
+    p_3d.add_argument("--formats", default="glb,step",
+                      help="Comma-separated formats (default: glb,step).")
+    p_3d.add_argument("--fetch-models", action="store_true",
+                      help="Download the few 3D bodies this board needs from the "
+                           "upstream library — for hosts without kicad-packages3d.")
+    p_3d.set_defaults(func=cmd_export3d)
 
     p_init = sub.add_parser(
         "init",

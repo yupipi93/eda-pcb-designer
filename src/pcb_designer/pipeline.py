@@ -1,7 +1,7 @@
 """End-to-end pipeline orchestrator.
 
 Chains stages on a `ProjectConfig`:
-  schematic → place → route → render → verify → fab
+  schematic → place → route → render → verify → export3d → fab
 
 `verify` is the physical-placement gate (`pcb_designer.verify`): it aborts
 the pipeline before `fab` if any footprint is mirrored, mis-flipped, or
@@ -18,6 +18,10 @@ Stage routing:
   schematic, autorouter, render_dim}`.
 - `fab` calls `pcb_designer.fab.full_fab` directly — that stage has no
   board-specific data, just the YAML config + paths.
+- `export3d` calls `pcb_designer.export3d.export_3d` directly, same reason.
+  It runs in the default chain because a rotatable GLB is the cheapest way
+  for a human to sanity-check a board, and because `kicad-cli` drops
+  unresolvable component bodies silently — the stage surfaces that instead.
 
 The separation keeps the per-board configuration (placements, footprint
 lists, GND stitch coords) in the orchestrator scripts where humans
@@ -93,19 +97,43 @@ class Pipeline:
         # See projects/mt1/docs/POST-MORTEM-001-mirror-rootcause.md.
         self._run_tool("verify_placement.py")
 
+    def _stage_export3d(self) -> None:
+        """GLB + STEP for interactive inspection (pcb_designer.export3d).
+
+        Non-fatal by design: a missing 3D-model library must not break a
+        pipeline whose electrical outputs are fine, so an unresolved body is
+        reported loudly and the stage still succeeds.
+        """
+        from pcb_designer.export3d import VIEWING_HINT, export_3d
+        res = export_3d(self.pcb_path,
+                        self.config.exports3d_dir(self.repo_root),
+                        self.config.project.version)
+        for fmt, path in res.files.items():
+            print(f"  {fmt}: {path} ({path.stat().st_size / 1e6:.1f} MB)")
+        if res.missing_models:
+            print(f"  [WARN] {len(res.missing_models)} component body/bodies could not be "
+                  f"resolved — the 3D files will show pads with no part there:")
+            for m in res.missing_models[:8]:
+                print(f"         {m}")
+            print("         install kicad-packages3d, or call export_3d(..., "
+                  "fetch_missing=True) to pull just these files.")
+        print(VIEWING_HINT)
+
     def _stage_fab(self) -> None:
         version = self.config.project.version
         releases_dir = self.config.releases_dir(self.repo_root)
         full_fab(self.pcb_path, self.sch_path, releases_dir, version)
 
     def run(self, stages: list[str] | None = None) -> PipelineResult:
-        stages = stages or ["schematic", "place", "route", "render", "verify", "fab"]
+        stages = stages or ["schematic", "place", "route", "render", "verify",
+                            "export3d", "fab"]
         stage_map = {
             "schematic": self._stage_schematic,
             "place": self._stage_place,
             "route": self._stage_route,
             "render": self._stage_render,
             "verify": self._stage_verify,
+            "export3d": self._stage_export3d,
             "fab": self._stage_fab,
         }
         ran = []

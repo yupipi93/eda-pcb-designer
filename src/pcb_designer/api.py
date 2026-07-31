@@ -201,6 +201,9 @@ def create_app() -> Flask:
                                 "adds multipart 'modules' yaml + 'images' files)"),
                 "POST /route": "pcb → freerouting-autorouted .kicad_pcb",
                 "POST /fab": "pcb + sch → gerbers/BOM/pos release zip (?version=vX.Y.Z)",
+                "POST /export3d": ("pcb → interactive 3D model "
+                                   "(?format=glb|step|both) — GLB opens in "
+                                   "3dviewer.net or f3d, STEP in CAD"),
             },
             "example": ("curl -F pcb=@board.kicad_pcb $URL/route -o routed.kicad_pcb"),
             "docs": "https://github.com/yupipi93/eda-pcb-designer",
@@ -486,6 +489,48 @@ def create_app() -> Flask:
             return _file_or_json(Path(zip_path), mimetype="application/zip",
                                  meta={"version": version})
 
+    @app.post("/export3d")
+    def export3d():
+        """pcb -> rotatable 3D model (GLB for viewers, STEP for CAD).
+
+        `?format=glb|step|both` (default glb). `both` returns a zip. This
+        host ships kicad-packages3d, so component bodies resolve here even
+        though a slim local KiCad install would drop them.
+        """
+        missing = _need_kicad_cli()
+        if missing:
+            return missing
+        from pcb_designer.export3d import export_3d
+        fmt = (request.args.get("format") or "glb").lower()
+        if fmt not in {"glb", "step", "both"}:
+            return _err("bad_request",
+                        f"format must be glb, step or both (got {fmt!r})", 400)
+        version = request.args.get("version", "v0.0.0-api")
+        formats = ("glb", "step") if fmt == "both" else (fmt,)
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            pcb, err = _save_upload("pcb", tmp, "board.kicad_pcb")
+            if err:
+                return err
+            try:
+                res = export_3d(pcb, tmp / "3d", version, formats=formats,
+                                stem="board")
+            except (SystemExit, Exception) as e:
+                return _err("export3d_failed", f"{type(e).__name__}: {e}", 500)
+            meta = {"version": version,
+                    "missing_models": len(res.missing_models),
+                    "complete": res.complete}
+            if len(res.files) == 1:
+                only = next(iter(res.files.values()))
+                mt = ("model/gltf-binary" if only.suffix == ".glb"
+                      else "application/step")
+                return _file_or_json(only, mimetype=mt, meta=meta)
+            bundle = tmp / f"board-{version}-3d.zip"
+            with zipfile.ZipFile(bundle, "w", zipfile.ZIP_DEFLATED) as z:
+                for path in res.files.values():
+                    z.write(path, arcname=path.name)
+            return _file_or_json(bundle, mimetype="application/zip", meta=meta)
+
     return app
 
 
@@ -518,6 +563,9 @@ and AI agents. <a href="https://github.com/yupipi93/eda-pcb-designer">Docs on Gi
   overlay takes multipart <code>modules</code> yaml + <code>images</code> files)</td></tr>
 <tr><td><code>POST /route</code></td><td>pcb → freerouting-autorouted pcb</td></tr>
 <tr><td><code>POST /fab</code></td><td>pcb + sch → gerbers/BOM/pos zip</td></tr>
+<tr><td><code>POST /export3d</code></td><td>pcb → rotatable 3D model
+  (<code>?format=glb|step|both</code>). Drop the <code>.glb</code> on
+  <a href="https://3dviewer.net">3dviewer.net</a>, or <code>f3d file.glb</code></td></tr>
 </table>
 <h2>Try it</h2>
 <pre>URL=https://this-service
@@ -527,6 +575,9 @@ curl -F pcb=@board.kicad_pcb "$URL/route" -o routed.kicad_pcb
 
 # DRC report
 curl -F pcb=@board.kicad_pcb "$URL/drc" | jq .by_severity
+
+# Rotatable 3D model — then drag board.glb onto https://3dviewer.net
+curl -F pcb=@board.kicad_pcb "$URL/export3d?format=glb" -o board.glb
 
 # Raytraced render of both sides
 curl -F pcb=@board.kicad_pcb "$URL/render?side=both" -o renders.zip
@@ -620,6 +671,19 @@ _OPENAPI = {
                  "schema": {"type": "integer", "default": 30, "maximum": 50}},
                 {"name": "optim", "in": "query",
                  "schema": {"type": "integer", "default": 5, "maximum": 20}}],
+            "requestBody": {"content": {"multipart/form-data": {"schema": {
+                "type": "object", "required": ["pcb"], "properties": {
+                    "pcb": {"type": "string", "format": "binary"}}}}}},
+            "responses": _FILE_RESP}},
+        "/export3d": {"post": {
+            "summary": "Export a rotatable 3D model (GLB for viewers, STEP for CAD)",
+            "parameters": [
+                {"name": "format", "in": "query", "required": False,
+                 "schema": {"type": "string", "enum": ["glb", "step", "both"],
+                            "default": "glb"}},
+                {"name": "version", "in": "query", "required": False,
+                 "schema": {"type": "string"}},
+            ],
             "requestBody": {"content": {"multipart/form-data": {"schema": {
                 "type": "object", "required": ["pcb"], "properties": {
                     "pcb": {"type": "string", "format": "binary"}}}}}},

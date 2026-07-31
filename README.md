@@ -80,6 +80,7 @@ pcb-designer --help
 | `place`, `render` | **KiCad 9** (`kicad-cli`) + `poppler-utils` + Pillow |
 | `route` | KiCad 9 (`pcbnew` Python module) + **Java 21** + freerouting JAR |
 | `verify` | numpy + Pillow (extras) |
+| `export3d` | KiCad 9 (`kicad-cli`); component bodies need `kicad-packages3d` (or `--fetch-models`) |
 | `fab` | KiCad 9 (`kicad-cli`) |
 
 KiCad 9 install options are documented in [`docs/SETUP.md`](docs/SETUP.md)
@@ -107,9 +108,10 @@ pcb-designer validate --config examples/mt1.yaml
 # → OK: MT1 Flight Computer Board (v0.1.4) — 19 placements, 16 through-hole, 100×30 mm board
 
 pcb-designer pipeline --config examples/mt1.yaml --stages place,route,render
-# place  → placement + layer flips + GND zone + DRC + renders
-# route  → freerouting autoroute + zone fill + stitches   (needs Java 21 + JAR)
-# render → PCB-editor-style DIM PNGs                      (needs kicad-cli + pdftocairo)
+# place    → placement + layer flips + GND zone + DRC + renders
+# route    → freerouting autoroute + zone fill + stitches (needs Java 21 + JAR)
+# render   → PCB-editor-style DIM PNGs                    (needs kicad-cli + pdftocairo)
+# export3d → GLB + STEP you can rotate (see "Look at the board in 3D" below)
 
 pcb-designer fab --config examples/mt1.yaml --version v0.1.4
 # → projects/mt1/releases/v0.1.4/…zip  (9 gerbers + 2 drill + BOM + pos, JLCPCB-ready)
@@ -150,6 +152,10 @@ curl -F pcb=@board.kicad_pcb "$URL/render?side=both" -o renders.zip
 # render styles: bare (no 3D bodies) | realistic | realistic-dim | dim (2D DIM
 # plot) | overlay (client sends module photos: -F modules=@modules.yaml
 # -F images=@nano.png, ?calibration=green_bbox for boards with <4 holes)
+
+# Rotatable 3D model (?format=glb|step|both). The service ships the 3D model
+# library, so component bodies always resolve here:
+curl -F pcb=@board.kicad_pcb "$URL/export3d?format=glb" -o board.glb
 curl -F pcb=@board.kicad_pcb "$URL/render?side=top&style=realistic" -o top.png
 curl -F pcb=@board.kicad_pcb -F sch=@board.kicad_sch "$URL/fab?version=v1.0.0" -o release.zip
 
@@ -181,6 +187,50 @@ text, updated, missing = place_and_flip(text, {r: p.as_tuple() for r, p in cfg.p
 Every module is importable on its own: `kicad_pcb_io` (depth-aware S-expression
 surgery), `placement` (genuine layer flips), `injection`, `routing`,
 `autorouter`, `render_dim`, `render_overlay`, `verify`, `fab`.
+
+## Look at the board in 3D
+
+`export3d` runs in the default pipeline and writes two files per version to
+the board's `exports3d_output_dir` (default `projects/<name>/3d/`):
+
+| File | For |
+|---|---|
+| `<board>-<version>.glb` | **looking at it** — binary glTF, opens in browsers and light native viewers |
+| `<board>-<version>.step` | **CAD** — FreeCAD / Fusion, enclosure design, real fit checks |
+
+Both include tracks, pads, zones, silkscreen and soldermask, so they match the
+`realistic` render rather than a bare outline.
+
+**Web, nothing to install.** Open <https://3dviewer.net> and drag the `.glb`
+in. Drag to rotate, scroll to zoom. It renders in your browser — the file is
+not uploaded to a server. It also opens `.step`, which is handy for checking
+mechanical fit without a CAD install.
+
+**Local, lightweight.** [f3d](https://f3d.app) is a fast native viewer:
+
+```bash
+sudo apt install f3d            # Debian/Ubuntu; also brew install f3d, or see f3d.app
+f3d projects/my-board/3d/my-board-v1.0.0.glb
+```
+
+Drag rotates, scroll zooms, `r` toggles raytracing-ish shading. There is also
+KiCad's own 3D viewer (**Alt+3** in the PCB editor) if you have KiCad
+installed and want layer toggles and cross-sections.
+
+### If parts are missing bodies
+
+Component bodies are **not** in the `.kicad_pcb` — each footprint stores a
+*path* into the `kicad-packages3d` library (several GB). `kicad-cli` skips
+models it cannot resolve **silently**, so a slim install produces a board with
+pads and no components and no error. `export3d` detects this and says so, and
+can fetch just the handful of files your board references (~1–2 MB) instead of
+the whole library:
+
+```bash
+pcb-designer export3d --config board.yaml --fetch-models
+```
+
+The hosted API needs none of this — its image ships the model library.
 
 ## Architecture
 
