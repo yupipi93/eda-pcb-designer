@@ -25,3 +25,6 @@ fp-info-cache
 
 # Pipeline log output
 freerouting.log
+
+# export3d artefacts — regenerable, multi-MB (pcb-designer export3d)
+projects/*/3d/
