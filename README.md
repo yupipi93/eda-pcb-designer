@@ -1,47 +1,86 @@
+<div align="center">
+
 # eda-pcb-designer
 
-**A deterministic KiCad-9 PCB design pipeline** — spec → schematic → placement →
-routing → verification → fabrication outputs — packaged as an installable Python
-toolkit (`pcb-designer`) with a per-board YAML config as the single source of truth.
+**One YAML file in → a fabricable PCB out.**
 
-The pipeline itself calls **no LLM API**. It is a plain, reproducible
-Python + KiCad + freerouting toolchain — but it was **built to be driven safely by
-an AI coding agent** (Claude, GPT, Gemini, …) as well as by humans: every stage is
-headless, idempotent and scriptable; errors fail fast with actionable messages; and
-a physical-verification gate (anti-mirror / anti-pin-swap) blocks fabrication
-outputs when the layout contradicts the board's ground-truth pinout. See
+A deterministic, headless **KiCad-9 PCB design pipeline** — spec → schematic →
+placement → autorouting → DRC → physical verification → JLCPCB-ready gerbers —
+packaged as an installable Python toolkit (`pcb-designer`), with no GUI and no
+LLM in the loop.
+
+[![CI](https://github.com/yupipi93/eda-pcb-designer/actions/workflows/ci.yml/badge.svg)](https://github.com/yupipi93/eda-pcb-designer/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
+[![KiCad 9](https://img.shields.io/badge/KiCad-9-2a6fac)](docs/SETUP.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Live API](https://img.shields.io/badge/API-live-brightgreen)](https://pcb-designer.scv.multitecua.com)
+
+[Quickstart](#quickstart) · [Hosted API](#3--http-api-hosted--best-for-agents-in-the-cloud) · [The verification gate](#the-physical-verification-gate) · [For AI agents](#for-ai-agents) · [Docs](#documentation)
+
+<img src="docs/images/lemon-piano-v0.6.0-overlay-top.png" alt="Lemon Piano v0.6.0 — photorealistic overlay render produced by the pipeline"/>
+
+*Lemon Piano v0.6.0 — pipeline output. Placement, routing, DRC, render and
+dimension annotations all generated from one YAML file; the Arduino Nano photo
+is composited pin-over-pad by the overlay stage. Designed end-to-end through
+the hosted API.*
+
+</div>
+
+---
+
+## The pipeline
+
+```mermaid
+flowchart LR
+    Y[/"board.yaml<br/>(single source of truth)"/] --> S
+    S["schematic<br/>kicad-sch-api"] --> P["place<br/>real layer flips + DRC"]
+    P --> R["route<br/>freerouting + GND zone"]
+    R --> D["render<br/>DIM · realistic · overlay"]
+    D --> V{"verify<br/>anti-mirror gate"}
+    V -->|pass| F["fab<br/>gerbers · BOM · pos · zip"]
+    V -->|fail| X["⛔ no fab outputs"]
+```
+
+Every stage is **headless, idempotent and scriptable**; errors fail fast with
+actionable messages. The pipeline calls **no LLM API** — it is a plain,
+reproducible Python + KiCad + freerouting toolchain — but it was **built to be
+driven safely by an AI coding agent** (Claude, GPT, Gemini, …) as well as by
+humans: the agent edits the YAML and drives the CLI, and it cannot reach `fab`
+without passing DRC plus a physical-verification gate. See
 [`AGENTS.md`](AGENTS.md) for the agent operating protocol.
 
-> 🌐 **Live hosted API**: **https://pcb-designer.scv.multitecua.com** — no
-> install needed. Upload a `.kicad_pcb` and get back an autorouted board
-> (freerouting), a DRC report, raytraced renders or a JLCPCB-ready fab zip.
-> Agents self-configure from [`/openapi.json`](https://pcb-designer.scv.multitecua.com/openapi.json).
-> See [§ HTTP API](#3--http-api-hosted--best-for-agents-in-the-cloud).
->
+> [!TIP]
+> **🌐 Live hosted API** — **https://pcb-designer.scv.multitecua.com** — no install
+> needed. Upload a `.kicad_pcb`, get back an autorouted board, a DRC report,
+> raytraced renders or a JLCPCB-ready fab zip:
 > ```bash
 > curl -F pcb=@board.kicad_pcb https://pcb-designer.scv.multitecua.com/route -o routed.kicad_pcb
 > ```
 
-> **Provenance**: extracted from the
-> [multi-rocket-avionica](https://github.com/Multitec-UA/multi-rocket-avionica)
-> project, where it designed the **MT1 rocket flight computer** — 5 board releases
-> actually fabricated at JLCPCB. MT1 ships here as the worked example
-> ([`projects/mt1/`](projects/mt1/)).
+## What it produces
 
-```
- YAML config (per board — geometry, placements, nets, widths)
-        │
-        ▼
- schematic ──► place ──► route ──► render ──► verify ──► fab
- kicad-sch-api  place+flip  freerouting  DIM PNGs +  anti-mirror  gerbers, drill,
- programmatic   + DRC +     + GND zone   realistic   anti-pin-    BOM, pos, zip
- .kicad_sch     renders     + stitches   overlays    swap gate    (JLCPCB-ready)
-```
+One board, four render styles — all from the same `.kicad_pcb`, all generated
+by the `render` stage:
 
-| | |
+| `bare` | `dim` |
 |---|---|
-| ![MT1 v0.1.4 top](projects/mt1/renders/v0.1.4-top.png) | ![MT1 v0.1.4 realistic](projects/mt1/overlays/v0.1.4-realistic-top.png) |
-| *MT1 v0.1.4 — KiCad render (pipeline output)* | *Same board — photorealistic overlay with real breakout photos* |
+| ![bare render](docs/images/lemon-piano-v0.6.0-normal-top.png) | ![dim render](docs/images/lemon-piano-v0.6.0-dim-top.png) |
+| **`realistic`** | **`overlay`** |
+| ![realistic render](docs/images/lemon-piano-v0.6.0-realistic-top.png) | ![overlay render](docs/images/lemon-piano-v0.6.0-overlay-top.png) |
+
+Iterations are versioned, so a board's history reads like a filmstrip:
+
+![MT1 design evolution — outline, placement, autoroute, fabricated](docs/images/mt1-evolution.png)
+
+And it ships real hardware. The **MT1 rocket flight computer** went through
+**5 fabricated releases at JLCPCB** — designed entirely by this pipeline inside
+the [multi-rocket-avionica](https://github.com/Multitec-UA/multi-rocket-avionica)
+project, and vendored here as the worked example ([`projects/mt1/`](projects/mt1/)):
+
+| Pipeline render | The fabricated board |
+|---|---|
+| ![MT1 v0.1.4 photorealistic overlay](projects/mt1/overlays/v0.1.4-realistic-top.png) | ![MT1 fabricated and populated](docs/images/mt1-fabricated-photo.jpg) |
+| *MT1 v0.1.4 — overlay render with real breakout photos* | *The same design, fabricated at JLCPCB and populated* |
 
 ## Why
 
@@ -55,11 +94,8 @@ third path:
   with genuine layer flips, freerouting-based autorouting, GND zone + stitching,
   DRC, versioned renders, gerber/BOM/pos exports.
 - **Idempotency is law**: any stage can be re-run and converges to the same board.
-- **Verification is part of the pipeline, not an afterthought**: DRC on every
-  place/route, plus a computer-vision + geometric gate that catches mirrored or
-  pin-swapped footprints before they reach fabrication (it exists because three
-  mirror bugs once reached a real fab order — see
-  [`projects/mt1/docs/POST-MORTEM-001-mirror-rootcause.md`](projects/mt1/docs/POST-MORTEM-001-mirror-rootcause.md)).
+- **Verification is part of the pipeline, not an afterthought** — see
+  [the physical-verification gate](#the-physical-verification-gate) below.
 
 ## Install
 
@@ -141,7 +177,6 @@ artefact.
 
 ```bash
 URL=https://pcb-designer.scv.multitecua.com
-# (direct service URL: https://pcb-designer-773810300510.europe-west1.run.app)
 
 # Freerouting-as-a-service: autoroute any .kicad_pcb
 curl -F pcb=@board.kicad_pcb "$URL/route" -o routed.kicad_pcb
@@ -149,11 +184,10 @@ curl -F pcb=@board.kicad_pcb "$URL/route" -o routed.kicad_pcb
 # DRC report / raytraced renders / JLCPCB-ready fab zip
 curl -F pcb=@board.kicad_pcb "$URL/drc" | jq .by_severity
 curl -F pcb=@board.kicad_pcb "$URL/render?side=both" -o renders.zip
-# render styles: bare (no 3D bodies) | realistic | realistic-dim | dim (2D DIM
-# plot) | overlay (client sends module photos: -F modules=@modules.yaml
-# -F images=@nano.png, ?calibration=green_bbox for boards with <4 holes)
+# render styles: bare | realistic | realistic-dim | dim | overlay
+# (overlay: client sends module photos: -F modules=@modules.yaml -F images=@nano.png)
 
-# Rotatable 3D model (?format=glb|step|both). The service ships the 3D model
+# Rotatable 3D model (?format=glb|step|both) — the service ships the 3D model
 # library, so component bodies always resolve here:
 curl -F pcb=@board.kicad_pcb "$URL/export3d?format=glb" -o board.glb
 curl -F pcb=@board.kicad_pcb "$URL/render?side=top&style=realistic" -o top.png
@@ -166,12 +200,13 @@ curl -F pcb=@board.kicad_pcb -F config=@board.yaml "$URL/place" -o placed.kicad_
 
 `GET /openapi.json` serves the OpenAPI 3 spec (agents self-configure from it);
 binary responses become base64 JSON with `?format=json`. Run it yourself with
-`make docker-api` or deploy with [`deploy/`](deploy/) (Cloud Run-ready).
+`make docker-api` or deploy with [`deploy/`](deploy/) (Cloud Run-ready —
+production deploys are tag-driven: pushing `pcb-designer-vX.Y.Z` builds and
+rolls out automatically via the multitec Terraform repo).
 
-> **Production deploys are tag-driven**: the hosted service is managed by the
-> multitec Terraform repo (Cloud Run + Artifact Registry + Cloud Build trigger
-> + domain mapping); pushing a tag `pcb-designer-vX.Y.Z` to this repo builds
-> `deploy/Dockerfile` and rolls out the new revision automatically.
+> The **Lemon Piano v0.6.0** board in the hero image was designed end-to-end
+> through exactly these endpoints (`/place /route /drc /render /fab`) from its
+> product repo, [arduino-lemon-piano](https://github.com/yupipi93/arduino-lemon-piano).
 
 ### 4 · Python API
 
@@ -186,71 +221,64 @@ text, updated, missing = place_and_flip(text, {r: p.as_tuple() for r, p in cfg.p
 
 Every module is importable on its own: `kicad_pcb_io` (depth-aware S-expression
 surgery), `placement` (genuine layer flips), `injection`, `routing`,
-`autorouter`, `render_dim`, `render_overlay`, `verify`, `fab`.
+`autorouter`, `render_dim`, `render_overlay`, `export3d`, `verify`, `fab`.
+
+## The physical-verification gate
+
+The `verify` stage is a **hard gate between routing and fabrication**: a
+computer-vision + geometric check that catches mirrored or pin-swapped
+footprints by comparing the rendered board against the board's ground-truth
+pinout. It exists because **three mirror bugs once reached a real fab order**
+(the full story:
+[`projects/mt1/docs/POST-MORTEM-001-mirror-rootcause.md`](projects/mt1/docs/POST-MORTEM-001-mirror-rootcause.md)).
+
+| Mounting-hole CV check | Pins-over-pads check |
+|---|---|
+| ![hole verification diff](projects/mt1/validation/holes/holes-diff-top.png) | ![pin alignment check](projects/mt1/validation/pins/pins-XIAO_ESP32S3.png) |
+| *Detected hole centres vs ground truth — deviation 0.000 mm* | *Every module pin proven to sit on its pad* |
+
+If the layout contradicts the ground truth, `verify` exits non-zero and `fab`
+never runs. The mirrored board that motivated the gate is kept as a regression
+fixture ([`tests/fixtures/mt1-pcb-v0.1.1-buggy.kicad_pcb`](tests/fixtures/)) so
+the tests prove the gate still catches it.
 
 ## Look at the board in 3D
 
-`export3d` runs in the default pipeline and writes two files per version to
-the board's `exports3d_output_dir` (default `projects/<name>/3d/`):
+`export3d` runs in the default pipeline and writes two files per version:
+a **`.glb`** (binary glTF — opens in browsers and light viewers) and a
+**`.step`** (FreeCAD / Fusion, enclosure design, real fit checks). Both include
+tracks, pads, zones, silkscreen and soldermask.
 
-| File | For |
-|---|---|
-| `<board>-<version>.glb` | **looking at it** — binary glTF, opens in browsers and light native viewers |
-| `<board>-<version>.step` | **CAD** — FreeCAD / Fusion, enclosure design, real fit checks |
+<details>
+<summary><b>Viewer recommendations (VS Code, web, native) and the missing-bodies gotcha</b></summary>
 
-Both include tracks, pads, zones, silkscreen and soldermask, so they match the
-`realistic` render rather than a bare outline.
-
-**In VS Code — one click.** Both repos ship a `.vscode/extensions.json`
+**In VS Code — one click.** The repo ships a `.vscode/extensions.json`
 recommending [`thingraph.cad-viewer`](https://marketplace.visualstudio.com/items?itemName=thingraph.cad-viewer),
-so VS Code offers to install it the first time you open the workspace
-(Extensions view → *Recommended*). Or do it explicitly:
-
-```bash
-code --install-extension thingraph.cad-viewer
-```
-
-Then **double-click the `.glb`** — or the `.step` — and it opens in a tab you
-can drag to rotate. It is the one extension that handles both formats this
-stage emits, and it bundles `occt-import-js.wasm` (OpenCascade), so its STEP
-support is a real geometry kernel rather than a marketing claim. Free,
-read-only, ~24 MB.
-
-> Not to be confused with **glTF Tools** (`cesium.gltf-vscode`), which is far
-> more popular (235 k installs) but is a *format* tool: it validates and
-> converts glTF/GLB and registers no viewer for `.glb`, so you would have to
-> import to `.gltf` first just to look at it.
+so VS Code offers to install it the first time you open the workspace. Then
+double-click the `.glb` — or the `.step` — and drag to rotate. It bundles
+`occt-import-js.wasm` (OpenCascade), so its STEP support is a real geometry
+kernel.
 
 **Web, nothing to install.** Open <https://3dviewer.net> and drag the `.glb`
-in. Drag to rotate, scroll to zoom. It renders in your browser — the file is
-not uploaded to a server. It also opens `.step`, which is handy for checking
-mechanical fit without a CAD install.
+in — it renders in your browser, the file is not uploaded to a server.
 
-**Local, lightweight.** [f3d](https://f3d.app) is a fast native viewer:
+**Local, lightweight.** [f3d](https://f3d.app) (`sudo apt install f3d`) is a
+fast native viewer. There is also KiCad's own 3D viewer (**Alt+3**) if you have
+KiCad installed.
 
-```bash
-sudo apt install f3d            # Debian/Ubuntu; also brew install f3d, or see f3d.app
-f3d projects/my-board/3d/my-board-v1.0.0.glb
-```
-
-Drag rotates, scroll zooms, `r` toggles raytracing-ish shading. There is also
-KiCad's own 3D viewer (**Alt+3** in the PCB editor) if you have KiCad
-installed and want layer toggles and cross-sections.
-
-### If parts are missing bodies
-
-Component bodies are **not** in the `.kicad_pcb` — each footprint stores a
-*path* into the `kicad-packages3d` library (several GB). `kicad-cli` skips
-models it cannot resolve **silently**, so a slim install produces a board with
-pads and no components and no error. `export3d` detects this and says so, and
-can fetch just the handful of files your board references (~1–2 MB) instead of
-the whole library:
+**If parts are missing bodies:** component bodies are **not** in the
+`.kicad_pcb` — each footprint stores a *path* into the `kicad-packages3d`
+library (several GB), and `kicad-cli` skips models it cannot resolve
+**silently**. `export3d` detects this and can fetch just the handful of files
+your board references (~1–2 MB):
 
 ```bash
 pcb-designer export3d --config board.yaml --fetch-models
 ```
 
 The hosted API needs none of this — its image ships the model library.
+
+</details>
 
 ## Architecture
 
@@ -263,7 +291,7 @@ eda-pcb-designer/
 │   ├── placement.py         ← place + genuine F.Cu↔B.Cu flips (mirror-safe)
 │   ├── injection.py, routing.py, geometry.py, schematic.py
 │   ├── autorouter.py        ← DSN → freerouting → SES → zone fill
-│   ├── render_dim.py, fab.py, pipeline.py
+│   ├── render_dim.py, export3d.py, fab.py, pipeline.py
 │   ├── api.py               ← stateless HTTP API (Flask; `[api]` extra)
 │   ├── render_overlay/      ← photorealistic overlay compositor (+ CLI)
 │   ├── verify/              ← anti-mirror / anti-pin-swap / mounting-hole gate
@@ -275,7 +303,7 @@ eda-pcb-designer/
 │                              validation evidence, fabricated release v0.1.4
 ├── themes/                  ← KiCad DIM render color themes
 ├── vendor/                  ← freerouting fetch script (JAR not committed)
-└── tests/                   ← 42 unit tests (config, verify, holes, pins)
+└── tests/                   ← unit tests (config, verify, holes, pins, api, 3d)
 ```
 
 The package/example split is the core design rule: **algorithms live in
@@ -289,12 +317,10 @@ in the YAML), so adding a second board never touches the package.
 validation evidence and releases all together — with the board's tools
 importing this toolkit as a sibling repo (`../eda-pcb-designer/src`) and
 running the generative steps in this repo's Docker image. That is how MT1
-lives upstream (`multi-rocket-avionica/pcb/`) and how the Lemon Piano V5.5
-board lives in `arduino-lemon-piano/pcb/` (designed end-to-end through the
-hosted API: /place /route /drc /render /fab, release v0.1.0). The
-`projects/mt1/` copy here is the vendored worked example the docs and
-tests reference — scaffold with `pcb-designer init`, then move the
-project folder into the product repo's `pcb/`.
+lives upstream (`multi-rocket-avionica/pcb/`) and how the Lemon Piano board
+lives in `arduino-lemon-piano/pcb/`. The `projects/mt1/` copy here is the
+vendored worked example the docs and tests reference — scaffold with
+`pcb-designer init`, then move the project folder into the product repo's `pcb/`.
 
 ## For AI agents
 
@@ -332,13 +358,22 @@ without passing DRC + the physical-verification gate.
 ```bash
 make dev    # editable install with all extras
 make lint   # ruff check src tests
-make test   # pytest (42 tests)
+make test   # pytest
 make docker # build the pipeline-in-a-box image
 ```
 
 CI runs lint + tests on Python 3.11/3.12, validates the example configs,
-round-trips a `pcb-designer init` scaffold, then builds the Docker image and runs
-the MT1 `place,render` stages inside it with a real KiCad 9.
+round-trips a `pcb-designer init` scaffold, builds the Docker image and runs
+the MT1 `place,render` stages inside it with a real KiCad 9, and smoke-tests
+every HTTP API endpoint against the deploy image.
+
+## Related projects
+
+| repo | what |
+|---|---|
+| [eda-wirewright](https://github.com/yupipi93/eda-wirewright) | The sibling tool: declarative **wiring-diagram** engine with auto-router + DRC, same engine + hosted-API + agent-protocol pattern |
+| [multi-rocket-avionica](https://github.com/Multitec-UA/multi-rocket-avionica) | Where this toolkit was born — the MT1 flight computer's product repo |
+| [arduino-lemon-piano](https://github.com/yupipi93/arduino-lemon-piano) | Second production board (`pcb/`), designed end-to-end through the hosted API |
 
 ## License
 
