@@ -27,10 +27,10 @@ dependencies = [
 
 [project.optional-dependencies]
 schematic = ["kicad-sch-api"]
-render = ["Pillow>=9.0"]
-verify = ["Pillow>=9.0", "numpy>=1.24"]
-api = ["flask>=3.0", "gunicorn>=21.0"]
-dev = ["pytest>=8", "ruff>=0.4", "Pillow>=9.0", "numpy>=1.24", "flask>=3.0"]
+render = ["Pillow>=11.3"]
+verify = ["Pillow>=11.3", "numpy>=1.24"]
+api = ["flask>=3.1.1", "gunicorn>=23.0"]
+dev = ["pytest>=8", "ruff>=0.4", "Pillow>=11.3", "numpy>=1.24", "flask>=3.1.1"]
 
 [project.scripts]
 pcb-designer = "pcb_designer.cli:main"

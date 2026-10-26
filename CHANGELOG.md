@@ -4,6 +4,12 @@ All notable changes to pcb-designer. Format loosely follows Keep a Changelog.
 
 ## [Unreleased]
 
+### Security
+- Raised dependency floors past known-vulnerable releases: `Pillow>=11.3`
+  (CVE-2023-4863 libwebp and older), `flask>=3.1.1`, `gunicorn>=23.0`.
+- Added `uv.lock` so the resolved versions are recorded and scanners see
+  exact versions instead of open ranges.
+
 ## [0.4.0] — 2026-07-31
 
 ### Added
