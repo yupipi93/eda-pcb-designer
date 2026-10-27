@@ -9,6 +9,12 @@ All notable changes to pcb-designer. Format loosely follows Keep a Changelog.
   (CVE-2023-4863 libwebp and older), `flask>=3.1.1`, `gunicorn>=23.0`.
 - Added `uv.lock` so the resolved versions are recorded and scanners see
   exact versions instead of open ranges.
+- Cloud Run image (`deploy/Dockerfile`): dropped `software-properties-common`
+  after adding the KiCad PPA and stopped installing `python3-pip`, which
+  removes stale system copies of cryptography 41, PyJWT 2.7, httplib2 0.20
+  and wheel 0.42; removed the system `python3-pil` 10.2 (pulled by KiCad's wx
+  bindings, unused headless), so only the venv's Pillow 13 is present.
+  Rebuilt on current Ubuntu 24.04 updates (OpenSSL 3.0.13-0ubuntu3.16).
 
 ## [0.4.0] — 2026-07-31
 

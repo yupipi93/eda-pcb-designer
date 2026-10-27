@@ -18,8 +18,16 @@ RUN apt-get update \
       kicad kicad-symbols kicad-footprints kicad-packages3d \
       openjdk-21-jre-headless \
       poppler-utils fonts-dejavu-core \
-      python3 python3-pip python3-venv \
+      python3 python3-venv \
+ && apt-get purge -y --auto-remove software-properties-common \
+ && dpkg --remove --force-depends python3-pil \
  && rm -rf /var/lib/apt/lists/*
+# Security trim: software-properties-common is only needed for
+# add-apt-repository and drags in old system copies of cryptography, pyjwt and
+# httplib2; python3-pip is not needed (the venv brings its own pip). The
+# system python3-pil (10.2, pulled by KiCad's wx bindings, unused headless)
+# is shadowed by the venv's Pillow anyway, so it is removed to keep the
+# scanners and any stray import on the patched Pillow.
 
 # Freerouting JAR in its own layer (64 MB, checksum-verified) so repo edits
 # don't re-download it.
